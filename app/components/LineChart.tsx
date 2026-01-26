@@ -3,6 +3,9 @@
 import { useEffect, useRef } from 'react'
 import Chart from 'chart.js/auto'
 
+
+//TODO: Doc for future graph - https://www.chartjs.org/docs/latest/samples/advanced/data-decimation.html 
+//Just a basic graph for now
 export default function LineChart() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 

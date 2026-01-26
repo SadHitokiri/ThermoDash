@@ -2,18 +2,18 @@ export default function Devices() {
     return (
         <>
             <h1 className='text-6xl font-bold antialiased'>Devices</h1>
-            <div className="bg-white rounded-xl shadow p-4 overflow-x-auto">
-                <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
+            <div className="p-8">
+                <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden dark:bg-neutral-700">
                     <thead className="bg-gray-100">
                         <tr>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                                Name
+                                Device Name
                             </th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                                 Status
                             </th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                                Value
+                                Temperature
                             </th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                                 Updated
@@ -22,7 +22,7 @@ export default function Devices() {
                     </thead>
 
                     <tbody className="divide-y divide-gray-200">
-                        <tr className="hover:bg-gray-50 transition">
+                        <tr>
                             <td className="px-4 py-3">Sensor A</td>
                             <td className="px-4 py-3">
                                 <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
@@ -35,7 +35,7 @@ export default function Devices() {
                             </td>
                         </tr>
 
-                        <tr className="hover:bg-gray-50 transition">
+                        <tr>
                             <td className="px-4 py-3">Sensor B</td>
                             <td className="px-4 py-3">
                                 <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
@@ -49,7 +49,6 @@ export default function Devices() {
                         </tr>
                     </tbody>
                 </table>
-
             </div>
         </>
     );
