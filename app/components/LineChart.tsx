@@ -1,36 +1,50 @@
-'use client'
+"use client";
 
-import { useEffect, useRef } from 'react'
-import Chart from 'chart.js/auto'
+import { useEffect, useRef } from "react";
+import {Chart, ChartType} from "chart.js/auto";
 
-
-//TODO: Doc for future graph - https://www.chartjs.org/docs/latest/samples/advanced/data-decimation.html 
-//Just a basic graph for now
-export default function LineChart() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+export default function LineChart({
+  name,
+  xData,
+  yData,
+}: {
+  name: string;
+  xData: any;
+  yData: any;
+}) {
+  const canvasRef = useRef(null);
 
   useEffect(() => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current) return;
 
-    const chart = new Chart(canvasRef.current, {
-      type: 'line',
-      data: {
-        labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-        datasets: [
-          {
-            label: 'My First Dataset',
-            data: [65, 59, 80, 81, 56, 55, 40],
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.1,
+    let labels = yData;
+    let data = {
+      labels: labels,
+      datasets: [
+        {
+          label: "°C",
+          data: xData,
+          borderColor: "blue",
+        },
+      ],
+    };
+
+    const config = {
+      type: "line" as ChartType,
+      data: data,
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: name,
           },
-        ],
+        },
       },
-    })
-    
-    return () => {
-      chart.destroy()
-    }
-  }, [])
+    };
 
-  return <canvas ref={canvasRef} />
+    const chart = new Chart(canvasRef.current, config);
+  }, []);
+
+  return <canvas ref={canvasRef} />;
 }

@@ -17,11 +17,17 @@ export default function Statistic() {
 
           <tbody className="divide-y divide-gray-200">
             <tr>
-              <td className="px-4 py-3">Sensor A</td>
+              <td className="px-4 py-3">Today</td>
               <td className="px-4 py-3">
-                <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
-                  Active
-                </span>
+                <button>
+                  <a
+                    href="public/reports/report.txt"
+                    download
+                    className="text-blue-600 hover:underline"
+                  >
+                    Download
+                  </a>
+                </button>
               </td>
             </tr>
           </tbody>

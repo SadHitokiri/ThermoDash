@@ -1,17 +1,15 @@
 export default function Table({
   title,
-  children,
   data,
   status,
   file,
   updateDate,
 }: {
   title: string;
-  status: string;
-  file: any;
-  updateDate: Date;
-  children: React.ReactNode;
-  data: Object;
+  status?: string;
+  file?: any;
+  updateDate?: Date;
+  data?: Object;
 }) {
   return (
     <table className="table-auto">
