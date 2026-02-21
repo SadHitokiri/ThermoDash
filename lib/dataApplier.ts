@@ -1,7 +1,7 @@
 export type DeviceState = {
     deviceId: string,
     temperature?: number,
-    lastSeen?: Date | string
+    lastSeen?: string
 }
 
 const devices = new Map<string, DeviceState>()

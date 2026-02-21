@@ -2,6 +2,8 @@
 
 import Tile from "./components/Tile";
 import { useDevices } from "../lib/hooks/useDevices";
+import LineChart from "./components/LineChart";
+import { Children } from "react";
 
 export default function Page() {
   const devices = useDevices();
@@ -15,7 +17,7 @@ export default function Page() {
           return (
             <Tile
               key={device.deviceId}
-              title="Temperature"
+              title={device.lastSeen}
               device={device.deviceId}
               status={
                 device.temperature
@@ -23,7 +25,7 @@ export default function Page() {
                   : "Unknown"
               }
             >
-              <h2>{device.deviceId}</h2>
+              <LineChart value={device.temperature || null} lastSeen={device.lastSeen || null} />
             </Tile>
           );
         })}

@@ -2,21 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { applyData, DeviceState } from '@/lib/dataApplier'
 import { connectWs } from '@/lib/ws'
 
-const MAX_POINTS = 50000
-
 export function useDevices() {
     const [devices, setDevices] = useState<Map<string, DeviceState>>(
         new Map()
     )
 
     useEffect(() => {
-        connectWs((msg) => {
+        connectWs((msg) => { 
             const updated = applyData(msg)
             if (updated) {
                 setDevices(new Map(updated))
             }
         })
     }, [])
-
     return devices
 }
