@@ -3,7 +3,6 @@
 import Tile from "./components/Tile";
 import { useDevices } from "../lib/hooks/useDevices";
 import LineChart from "./components/LineChart";
-import { Children } from "react";
 
 export default function Page() {
   const devices = useDevices();
@@ -12,7 +11,7 @@ export default function Page() {
     <div>
       <h1 className="text-6xl font-bold">Dashboard</h1>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] auto-rows-fr gap-6 p-8">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] auto-rows-fr gap-6 p-8">
         {Array.from(devices.values()).map((device) => {
           return (
             <Tile
@@ -25,7 +24,7 @@ export default function Page() {
                   : "Unknown"
               }
             >
-              <LineChart value={device.temperature || null} lastSeen={device.lastSeen || null} />
+              <LineChart value={device.temperature || 0} lastSeen={device.lastSeen || "Never"} />
             </Tile>
           );
         })}

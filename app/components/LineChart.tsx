@@ -8,6 +8,8 @@ import {
   PointElement,
   LinearScale,
   CategoryScale,
+  Tooltip,
+  Legend
 } from "chart.js";
 
 Chart.register(
@@ -16,14 +18,16 @@ Chart.register(
   PointElement,
   LinearScale,
   CategoryScale,
+  Tooltip,
+  Legend
 );
 
 type Props = {
-  value: number | null;
-  lastSeen: string | null;
+  value: number;
+  lastSeen: string;
 };
 
-const MAX_POINTS = 5000;
+const MAX_POINTS = 500;
 
 export default function LineChart({ value, lastSeen }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,14 +47,22 @@ export default function LineChart({ value, lastSeen }: Props) {
           {
             label: "Temperature °C",
             data: [],
-            borderColor: "rgb(75,192,192)",
+            borderColor: "rgba(244, 118, 34, 1)",
             tension: 0.3,
           },
         ],
       },
       options: {
         responsive: true,
-        animation: false,
+        interaction: {
+          mode: "point",
+          intersect: true,
+        },
+        plugins: {
+          tooltip: {
+            enabled: true,
+          },
+        },
       },
     });
 
@@ -76,5 +88,5 @@ export default function LineChart({ value, lastSeen }: Props) {
     chart.update();
   }, [value]);
 
-  return <canvas ref={canvasRef} />;
+  return <canvas className="w-full h-full" ref={canvasRef} />;
 }
