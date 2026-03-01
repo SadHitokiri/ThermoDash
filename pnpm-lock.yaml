@@ -54,6 +54,9 @@ importers:
 
   apps/iot:
     dependencies:
+      '@serialport/parser-readline':
+        specifier: ^13.0.0
+        version: 13.0.0
       arduino-iot-js:
         specifier: ^0.9.7
         version: 0.9.7
