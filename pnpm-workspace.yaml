@@ -1,0 +1,3 @@
+packages:
+ - "thermocouple-spectator-app"
+ - "thermocouple-spectator-iot"
