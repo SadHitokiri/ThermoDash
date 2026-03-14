@@ -58,6 +58,7 @@ export default function LineChart({ value, lastSeen }: Props) {
           mode: "point",
           intersect: true,
         },
+        animation: false,
         plugins: {
           tooltip: {
             enabled: true,

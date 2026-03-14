@@ -16,12 +16,10 @@ export function applyData(message: any) {
 
     const device = devices.get(deviceId)!
 
-
     const temperature = Number(value)
     if (!isNaN(temperature)) {
         device.temperature = temperature
         device.lastSeen = new Date(time).toLocaleTimeString()
     }
-
     return devices
 }

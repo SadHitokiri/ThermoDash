@@ -11,7 +11,7 @@ export default function Page() {
     <div>
       <h1 className="text-6xl font-bold">Dashboard</h1>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] auto-rows-fr gap-6 p-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
         {Array.from(devices.values()).map((device) => {
           return (
             <Tile

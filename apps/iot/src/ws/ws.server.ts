@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import { eventBus } from '../core/eventBus'
-import { saveTemperature } from '../db'
+import { insertSensorData } from '../report-process'
 
 const clients = new Set<WebSocket>()
 
@@ -16,10 +16,11 @@ export function initWsServer(server: any) {
   })
 
   eventBus.on('telemetry', (data) => {
+      insertSensorData(
+        data.deviceId,
+        data.value
+      ) 
 
-    if (data.deviceId && data.temperature) {
-      saveTemperature(data.deviceId, data.temperature)
-    }
     const payload = JSON.stringify(data)
 
     for (const client of clients) {
