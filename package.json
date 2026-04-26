@@ -2,32 +2,49 @@
   "name": "arduino",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "electron/index.js",
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo run build",
+    "build:web": "pnpm --filter dashboard build",
+    "dist": "pnpm build:web && electron-builder",
     "start": "turbo run start",
-    "build:electron": "tsc -p electron/tsconfig.json",
-    "electron": "pnpm build:electron && electron dist/electron/main.js",
-    "dev:electron": "concurrently \"pnpm dev\" \"electron .\""
+    "electron": "wait-on http://localhost:3000 && electron .",
+    "dev:full": "concurrently \"pnpm dev\" \"wait-on http://localhost:3000 && pnpm electron\""
   },
   "keywords": [],
-  "author": "",
+  "author": "Dmitrijs Sinickis",
   "license": "ISC",
   "packageManager": "pnpm@10.28.1",
   "devDependencies": {
-    "@types/node": "20.19.35",
     "@types/electron": "^1.6.12",
+    "@types/node": "20.19.35",
     "@types/wait-on": "^5.3.4",
-    "electron": "^41.2.1",
-    "turbo": "^2.8.10"
-  },
-  "dependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^28.3.3",
+    "electron-builder": "^26.8.1",
+    "turbo": "^2.8.10",
     "wait-on": "^9.0.5"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ],
     "overrides": {
       "@types/node": "20.19.35"
+    }
+  },
+  "build": {
+    "appId": "com.thermocouple.spectator",
+    "productName": "Thermocouple Spectator",
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
     }
   }
 }
