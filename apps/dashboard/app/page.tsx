@@ -9,7 +9,7 @@ export default function Page() {
 
   return (
     <div>
-      <h1 className="text-6xl font-bold">Dashboard</h1>
+      <h1 className="text-xl">Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6">
         {Array.from(devices.values()).map((device) => {

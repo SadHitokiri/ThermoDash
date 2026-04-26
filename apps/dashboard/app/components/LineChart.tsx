@@ -9,7 +9,7 @@ import {
   LinearScale,
   CategoryScale,
   Tooltip,
-  Legend
+  Legend,
 } from "chart.js";
 
 Chart.register(
@@ -29,6 +29,30 @@ type Props = {
 
 const MAX_POINTS = 500;
 
+const getTimeLabel = (input: string) => {
+  const d = new Date(input);
+
+  if (isNaN(d.getTime())) {
+    return input;
+  }
+
+  return d.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const h = hex.replace("#", "");
+
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 export default function LineChart({ value, lastSeen }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart<"line"> | null>(null);
@@ -39,6 +63,18 @@ export default function LineChart({ value, lastSeen }: Props) {
     const ctx = canvasRef.current.getContext("2d");
     if (!ctx) return;
 
+    const styles = getComputedStyle(document.documentElement);
+    const primary = styles.getPropertyValue("--color-primary").trim();
+    const border = styles.getPropertyValue("--color-border").trim();
+    const foreground = styles.getPropertyValue("--color-foreground").trim();
+
+    const tickColor = hexToRgba(foreground, 0.7);
+    const gridColor = hexToRgba(border, 0.6);
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+    gradient.addColorStop(0, primary);
+    gradient.addColorStop(1, "transparent");
+
     chartRef.current = new Chart(ctx, {
       type: "line",
       data: {
@@ -47,21 +83,55 @@ export default function LineChart({ value, lastSeen }: Props) {
           {
             label: "Temperature °C",
             data: [],
-            borderColor: "rgba(244, 118, 34, 1)",
-            tension: 0.3,
+            borderColor: primary,
+            backgroundColor: gradient,
+            tension: 0.35,
+            fill: true,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            borderWidth: 2,
           },
         ],
       },
       options: {
         responsive: true,
         interaction: {
-          mode: "point",
-          intersect: true,
+          mode: "index",
+          intersect: false,
         },
         animation: false,
         plugins: {
+          legend: {
+            display: false,
+          },
           tooltip: {
-            enabled: true,
+            displayColors: false,
+            padding: 8,
+            callbacks: {
+              label: (ctx) => {
+                const y = ctx.parsed?.y;
+                return y != null ? `${y.toFixed(2)}°C` : "";
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false,
+            },
+            ticks: {
+              color: tickColor,
+              maxTicksLimit: 6,
+            },
+          },
+          y: {
+            grid: {
+              color: gridColor,
+            },
+            ticks: {
+              color: tickColor,
+            },
           },
         },
       },
@@ -76,7 +146,7 @@ export default function LineChart({ value, lastSeen }: Props) {
     if (!chartRef.current || value == null) return;
 
     const chart = chartRef.current;
-    const time = lastSeen;
+    const time = getTimeLabel(lastSeen || "");
 
     chart.data.labels?.push(time);
     chart.data.datasets[0].data.push(value);
@@ -86,8 +156,8 @@ export default function LineChart({ value, lastSeen }: Props) {
       chart.data.datasets[0].data.shift();
     }
 
-    chart.update();
-  }, [value]);
+    chart.update("none");
+  }, [value, lastSeen]);
 
   return <canvas className="w-full h-full" ref={canvasRef} />;
 }

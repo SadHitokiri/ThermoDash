@@ -11,6 +11,11 @@
     },
     "check-types": {
       "dependsOn": ["^check-types"]
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false
+
     }
   }
 }

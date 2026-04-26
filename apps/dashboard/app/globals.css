@@ -1,21 +1,57 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Мягкий светлый фон (не чисто белый) */
+  --background: #f8fafc;
+
+  /* Не чёрный, а мягкий тёмно-серый */
+  --foreground: #1f2937;
+
+  /* Акцент (приятный синий) */
+  --primary: #4f9cff;
+
+  /* Вторичный акцент (чуть мягче) */
+  --secondary: #93c5fd;
+
+  /* Карточки / блоки */
+  --card: #ffffff;
+
+  /* Бордеры */
+  --border: #e5e7eb;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-card: var(--card);
+  --color-border: var(--border);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+/* Тёмная тема — тоже не «чёрная», а мягкая */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* НЕ черный фон, а глубокий сине-серый */
+    --background: #0b1220;
+
+    /* основной текст — мягкий */
+    --foreground: #e6edf3;
+
+    /* карточки чуть светлее фона */
+    --card: #121a2b;
+
+    /* границы почти невидимые */
+    --border: #1e293b;
+
+    /* акцент (живой, но не кислотный) */
+    --primary: #5aa2ff;
+
+    /* hover / secondary */
+    --secondary: #1d4ed8;
   }
 }
 
