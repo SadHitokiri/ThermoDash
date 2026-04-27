@@ -1,9 +1,17 @@
 async function getReports() {
-  const res = await fetch("http://localhost:4000/api/reports", {
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch("http://127.0.0.1:4000/api/reports", {
+      cache: "no-store",
+    });
 
-  return res.json();
+    if (!res.ok) {
+      return [];
+    }
+
+    return res.json();
+  } catch {
+    return [];
+  }
 }
 
 export default async function ReportsPage() {
@@ -41,10 +49,10 @@ export default async function ReportsPage() {
 
                 <td className="px-6 py-4">
                   <a
-                    href={`http://localhost:4000/api/report-csv?day=${r.day}`}
+                    href={`http://127.0.0.1:4000/api/report-xlsx?day=${r.day}`}
                     className="text-[var(--color-primary)] font-medium hover:opacity-80 transition"
                   >
-                    Download CSV
+                    Download Excel
                   </a>
                 </td>
               </tr>

@@ -33,7 +33,10 @@ export async function getReportDays() {
     ORDER BY day DESC
   `)
 
-  return res.rows
+  return res.rows.map((row) => ({
+    day: String(row.day),
+    rows: Number(row.rows),
+  }))
 }
 
 export async function getReportForDay(start: Date, end: Date) {

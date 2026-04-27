@@ -7,7 +7,7 @@
     "dev": "turbo dev",
     "build": "turbo run build",
     "build:web": "pnpm --filter dashboard build",
-    "dist": "pnpm build:web && electron-builder",
+    "dist": "pnpm build && electron-builder",
     "start": "turbo run start",
     "electron": "wait-on http://localhost:3000 && electron .",
     "dev:full": "concurrently \"pnpm dev\" \"wait-on http://localhost:3000 && pnpm electron\""
@@ -16,8 +16,21 @@
   "author": "Dmitrijs Sinickis",
   "license": "ISC",
   "packageManager": "pnpm@10.28.1",
+  "dependencies": {
+    "@libsql/client": "^0.17.0",
+    "@serialport/parser-readline": "^13.0.0",
+    "arduino-iot-js": "^0.9.7",
+    "bindings": "^1.5.0",
+    "chart.js": "^4.5.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "next": "16.1.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "serialport": "^13.0.0",
+    "ws": "^8.19.0"
+  },
   "devDependencies": {
-    "@types/electron": "^1.6.12",
     "@types/node": "20.19.35",
     "@types/wait-on": "^5.3.4",
     "concurrently": "^9.2.1",
@@ -45,6 +58,29 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
-    }
+    },
+    "files": [
+      "electron/**/*",
+      "assets/icon.ico",
+      "apps/iot/dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "apps/dashboard/.next/standalone",
+        "to": "dashboard",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "apps/dashboard/.next/static",
+        "to": "dashboard/apps/dashboard/.next/static"
+      },
+      {
+        "from": "apps/dashboard/public",
+        "to": "dashboard/apps/dashboard/public"
+      }
+    ]
   }
 }

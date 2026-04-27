@@ -1,18 +1,49 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, dialog } = require("electron");
 const path = require("path");
-const { spawn } = require("child_process");
+const { fork } = require("child_process");
+const http = require("http");
 
 const isDev = !app.isPackaged;
+const frontendPort = process.env.DASHBOARD_PORT || "3000";
+const backendPort = process.env.IOT_PORT || "4000";
+const frontendUrl = `http://127.0.0.1:${frontendPort}`;
+const backendHealthUrl = `http://127.0.0.1:${backendPort}/health-status`;
 
 let mainWindow;
 let backendProcess;
 let nextProcess;
 
+function waitForUrl(url, timeoutMs = 30000) {
+  const startedAt = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      const req = http.get(url, (res) => {
+        res.resume();
+        resolve();
+      });
+
+      req.on("error", () => {
+        if (Date.now() - startedAt > timeoutMs) {
+          reject(new Error(`Timed out waiting for ${url}`));
+          return;
+        }
+
+        setTimeout(check, 500);
+      });
+
+      req.setTimeout(1000, () => req.destroy());
+    };
+
+    check();
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
-    icon: path.join(__dirname, "assets/icon.png"),
+    icon: path.join(__dirname, "..", "assets", "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
@@ -20,28 +51,68 @@ function createWindow() {
 
   mainWindow.setMenu(null);
 
-  mainWindow.loadURL("http://localhost:3000");
+  mainWindow.loadURL(frontendUrl);
 }
 
 function startServers() {
   if (isDev) return;
 
-  backendProcess = spawn("node", [
-    path.join(process.resourcesPath, "apps/iot/dist/index.js"),
-  ]);
+  const userDataPath = app.getPath("userData");
+  const packagedNodeModules = path.join(process.resourcesPath, "app.asar", "node_modules");
+  const commonEnv = {
+    ...process.env,
+    ELECTRON_RUN_AS_NODE: "1",
+    NODE_PATH: packagedNodeModules,
+  };
 
-  nextProcess = spawn("node", [
-    path.join(process.resourcesPath, "apps/dashboard/server.js"),
-  ]);
+  backendProcess = fork(path.join(process.resourcesPath, "app.asar", "apps", "iot", "dist", "index.js"), [], {
+    cwd: userDataPath,
+    env: {
+      ...commonEnv,
+      PORT: backendPort,
+      THERMODASH_DATA_DIR: path.join(userDataPath, "data"),
+    },
+    stdio: "pipe",
+  });
+
+  nextProcess = fork(path.join(process.resourcesPath, "dashboard", "apps", "dashboard", "server.js"), [], {
+    cwd: path.join(process.resourcesPath, "dashboard"),
+    env: {
+      ...commonEnv,
+      PORT: frontendPort,
+      HOSTNAME: "127.0.0.1",
+    },
+    stdio: "pipe",
+  });
+
+  backendProcess.stdout?.on("data", (data) => console.log(`[iot] ${data}`));
+  backendProcess.stderr?.on("data", (data) => console.error(`[iot] ${data}`));
+  nextProcess.stdout?.on("data", (data) => console.log(`[dashboard] ${data}`));
+  nextProcess.stderr?.on("data", (data) => console.error(`[dashboard] ${data}`));
 }
 
-app.whenReady().then(() => {
+function stopServers() {
+  if (backendProcess) backendProcess.kill();
+  if (nextProcess) nextProcess.kill();
+}
+
+app.whenReady().then(async () => {
   startServers();
-  createWindow();
+
+  try {
+    await Promise.all([
+      waitForUrl(frontendUrl),
+      waitForUrl(backendHealthUrl),
+    ]);
+    createWindow();
+  } catch (error) {
+    dialog.showErrorBox("Thermocouple Spectator failed to start", error.message);
+    stopServers();
+    app.quit();
+  }
 });
 
 app.on("window-all-closed", () => {
-  if (backendProcess) backendProcess.kill();
-  if (nextProcess) nextProcess.kill();
+  stopServers();
   app.quit();
 });
