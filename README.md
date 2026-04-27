@@ -126,3 +126,7 @@ The Statistics page uses the backend report API and downloads Excel files from:
 ```text
 http://127.0.0.1:4000/api/report-xlsx?day=YYYY-MM-DD
 ```
+
+## License
+
+ThermoDash is released under the ISC License. See [LICENSE](LICENSE) for details.
