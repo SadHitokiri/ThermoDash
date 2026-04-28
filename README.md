@@ -18,7 +18,7 @@ These two parts are designed to work together and should not be deployed separat
 - Temperature history storage in a local database
 - Statistics page with report days and row counts
 - Excel report export for each recorded day
-- Packaged Windows desktop installer
+- Packaged Windows and Ubuntu desktop installers
 
 ## Installing the Desktop App
 
@@ -27,6 +27,13 @@ dist/ThermoDash Setup 1.0.0.exe
 ```
 
 Run the installer and open ThermoDash from the Start menu or desktop shortcut. The application starts the dashboard and backend automatically.
+
+Ubuntu builds are generated as AppImage and Debian package files:
+
+```text
+dist/*.AppImage
+dist/*.deb
+```
 
 The following build artifacts are internal and are not needed for installation:
 
@@ -43,6 +50,12 @@ On Windows, the database is stored in the application data directory:
 
 ```text
 C:\Users\<user>\AppData\Roaming\ThermoDash\data\data.db
+```
+
+On Ubuntu, the database is stored in the user config directory:
+
+```text
+~/.config/ThermoDash/data/data.db
 ```
 
 This means:
@@ -91,14 +104,33 @@ pnpm build
 Create the Windows desktop installer:
 
 ```bash
-pnpm dist
+pnpm dist:win
 ```
 
-The installer is generated in:
+Create Ubuntu desktop packages:
+
+```bash
+pnpm dist:linux
+```
+
+Run this command on Ubuntu so native dependencies such as `serialport` are built for Linux.
+Running Linux package builds directly from Windows is not supported; use Ubuntu, WSL, or a Linux CI runner.
+
+The Windows installer is generated in:
 
 ```text
 dist/ThermoDash Setup 1.0.0.exe
 ```
+
+Ubuntu build artifacts are generated in `dist` as `.AppImage` and `.deb` files.
+
+On Ubuntu, serial device access may require adding the current user to the `dialout` group:
+
+```bash
+sudo usermod -a -G dialout "$USER"
+```
+
+Log out and back in after changing group membership.
 
 ## Project Structure
 

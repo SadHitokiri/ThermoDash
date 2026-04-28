@@ -13,6 +13,18 @@ let mainWindow;
 let backendProcess;
 let nextProcess;
 
+function getWindowIcon() {
+  if (process.platform === "win32") {
+    return path.join(__dirname, "..", "assets", "icon.ico");
+  }
+
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, "dashboard", "apps", "dashboard", "public", "logo.png");
+  }
+
+  return path.join(__dirname, "..", "apps", "dashboard", "public", "logo.png");
+}
+
 function waitForUrl(url, timeoutMs = 30000) {
   const startedAt = Date.now();
 
@@ -43,7 +55,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
-    icon: path.join(__dirname, "..", "assets", "icon.ico"),
+    icon: getWindowIcon(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
@@ -106,7 +118,7 @@ app.whenReady().then(async () => {
     ]);
     createWindow();
   } catch (error) {
-    dialog.showErrorBox("Thermocouple Spectator failed to start", error.message);
+    dialog.showErrorBox("ThermoDash failed to start", error.message);
     stopServers();
     app.quit();
   }

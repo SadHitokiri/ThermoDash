@@ -1,13 +1,16 @@
 {
-  "name": "arduino",
+  "name": "thermodash",
   "version": "1.0.0",
-  "description": "",
+  "description": "Desktop application for thermocouple temperature monitoring and Excel reports.",
   "main": "electron/index.js",
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo run build",
     "build:web": "pnpm --filter dashboard build",
     "dist": "pnpm build && electron-builder",
+    "dist:win": "pnpm build && electron-builder --win nsis",
+    "dist:linux": "pnpm build && electron-builder --linux deb",
+    "dist:linux:appimage": "pnpm build && electron-builder --linux AppImage",
     "start": "turbo run start",
     "electron": "wait-on http://localhost:3000 && electron .",
     "dev:full": "concurrently \"pnpm dev\" \"wait-on http://localhost:3000 && pnpm electron\""
@@ -41,6 +44,9 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@serialport/bindings-cpp",
+      "sharp",
+      "unrs-resolver",
       "electron"
     ],
     "overrides": {
@@ -48,8 +54,8 @@
     }
   },
   "build": {
-    "appId": "com.thermocouple.spectator",
-    "productName": "Thermocouple Spectator",
+    "appId": "com.thermodash.app",
+    "productName": "ThermoDash",
     "npmRebuild": false,
     "nodeGypRebuild": false,
     "directories": {
@@ -58,6 +64,15 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "apps/dashboard/public/logo.png",
+      "category": "Utility",
+      "maintainer": "ThermoDash Maintainers <maintainers@thermodash.local>"
     },
     "files": [
       "electron/**/*",
