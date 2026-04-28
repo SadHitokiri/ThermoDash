@@ -4,6 +4,16 @@ import { insertSensorData } from '../report-process'
 
 const clients = new Set<WebSocket>()
 
+function broadcast(data: unknown) {
+  const payload = JSON.stringify(data)
+
+  for (const client of clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(payload)
+    }
+  }
+}
+
 export function initWsServer(server: any) {
   const wss = new WebSocketServer({ server })
 
@@ -21,12 +31,10 @@ export function initWsServer(server: any) {
         data.value
       ) 
 
-    const payload = JSON.stringify(data)
+    broadcast(data)
+  })
 
-    for (const client of clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(payload)
-      }
-    }
+  eventBus.on('devices', (data) => {
+    broadcast(data)
   })
 }
