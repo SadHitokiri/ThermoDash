@@ -124,6 +124,12 @@ dist/ThermoDash Setup 1.0.0.exe
 
 Ubuntu build artifacts are generated in `dist` as `.AppImage` and `.deb` files.
 
+If the Ubuntu application menu keeps showing a generic gear icon after installing an updated package, log out and back in or refresh the icon cache:
+
+```bash
+sudo gtk-update-icon-cache -f /usr/share/icons/hicolor || true
+```
+
 On Ubuntu, serial device access may require adding the current user to the `dialout` group:
 
 ```bash
