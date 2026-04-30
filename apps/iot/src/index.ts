@@ -2,7 +2,16 @@ import express from 'express';
 import http from 'http';
 import { checkDevices } from './usb/usb.manager';
 import { initWsServer } from './ws/ws.server';
-import { initDB, getReportDays, getLastReadings, getReportForDay, getSensorNames, updateSensorName } from './report-process';
+import {
+    initDB,
+    getReportDays,
+    getLastReadings,
+    getReportForDay,
+    getSensorNames,
+    updateSensorName,
+    getSensorCalibrations,
+    updateSensorCalibration,
+} from './report-process';
 import { createReportWorkbook } from './xlsx';
 
 let wsBus: any;
@@ -79,6 +88,28 @@ async function bootstrap() {
 
         const result = await updateSensorName(sensorId, displayName)
         res.json(result ?? { sensorId, displayName: "" })
+    })
+
+    app.get("/api/sensor-calibrations", async (_, res) => {
+        const data = await getSensorCalibrations()
+        res.json(data)
+    })
+
+    app.put("/api/sensor-calibrations/:sensorId", async (req, res) => {
+        const sensorId = req.params.sensorId
+        const expression = typeof req.body?.expression === "string" ? req.body.expression : ""
+
+        if (!sensorId) {
+            res.status(400).json({ error: "Sensor ID is required" })
+            return
+        }
+
+        try {
+            const result = await updateSensorCalibration(sensorId, expression)
+            res.json(result ?? { sensorId, expression: "" })
+        } catch {
+            res.status(400).json({ error: "Use a simple expression like +1, -0.5, *2, or /1.1" })
+        }
     })
 
     app.get('/api/sensor-data/:deviceId', (req, res) => {

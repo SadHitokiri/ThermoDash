@@ -1,4 +1,5 @@
 import { deflateRawSync } from "zlib"
+import { applyTemperatureCalibration } from "./calibration"
 
 type CellValue = string | number
 type ReportRow = Record<string, unknown>
@@ -136,15 +137,18 @@ function createZip(files: Array<{ name: string; content: string | Buffer }>) {
 
 export function createReportWorkbook(rows: ReportRow[]) {
   const worksheetRows: CellValue[][] = [
-    ["Timestamp", "Sensor", "Temperature"],
+    ["Timestamp", "Sensor", "Temperature", "Calibration"],
     ...rows.map((row) => {
       const sensorId = String(row.sensor_id)
       const displayName = typeof row.display_name === "string" ? row.display_name.trim() : ""
+      const calibrationExpression = typeof row.calibration_expression === "string" ? row.calibration_expression.trim() : ""
+      const rawTemperature = Number(row.temperature)
 
       return [
         new Date(Number(row.timestamp)).toISOString(),
         displayName ? `${displayName} (${sensorId})` : sensorId,
-        Number(row.temperature),
+        applyTemperatureCalibration(rawTemperature, calibrationExpression),
+        calibrationExpression || "",
       ]
     }),
   ]

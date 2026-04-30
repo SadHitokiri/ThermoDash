@@ -1,4 +1,5 @@
 import { db } from "./db"
+import { normalizeCalibrationExpression } from "./calibration"
 
 export async function initDB() {
   await db.execute(`
@@ -14,6 +15,14 @@ export async function initDB() {
     CREATE TABLE IF NOT EXISTS sensor_names (
       sensor_id TEXT PRIMARY KEY,
       display_name TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+  `)
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS sensor_calibrations (
+      sensor_id TEXT PRIMARY KEY,
+      expression TEXT NOT NULL,
       updated_at INTEGER NOT NULL
     )
   `)
@@ -53,10 +62,12 @@ export async function getReportForDay(start: Date, end: Date) {
       SELECT
         sensor_data.sensor_id,
         sensor_names.display_name,
+        sensor_calibrations.expression as calibration_expression,
         sensor_data.temperature,
         sensor_data.timestamp
       FROM sensor_data
       LEFT JOIN sensor_names ON sensor_names.sensor_id = sensor_data.sensor_id
+      LEFT JOIN sensor_calibrations ON sensor_calibrations.sensor_id = sensor_data.sensor_id
       WHERE sensor_data.timestamp BETWEEN ? AND ?
       ORDER BY sensor_data.timestamp
     `,
@@ -108,6 +119,55 @@ export async function updateSensorName(sensorId: string, displayName: string) {
   return {
     sensorId,
     displayName: trimmedName,
+  }
+}
+
+export async function getSensorCalibrations() {
+  const res = await db.execute(`
+    SELECT sensor_id, expression
+    FROM sensor_calibrations
+    ORDER BY sensor_id
+  `)
+
+  return res.rows.map((row) => ({
+    sensorId: String(row.sensor_id),
+    expression: String(row.expression),
+  }))
+}
+
+export async function updateSensorCalibration(sensorId: string, expression: string) {
+  const normalizedExpression = normalizeCalibrationExpression(expression)
+
+  if (normalizedExpression == null) {
+    throw new Error("Invalid calibration expression")
+  }
+
+  if (normalizedExpression.length === 0) {
+    await db.execute({
+      sql: `
+        DELETE FROM sensor_calibrations
+        WHERE sensor_id = ?
+      `,
+      args: [sensorId],
+    })
+
+    return null
+  }
+
+  await db.execute({
+    sql: `
+      INSERT INTO sensor_calibrations (sensor_id, expression, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(sensor_id) DO UPDATE SET
+        expression = excluded.expression,
+        updated_at = excluded.updated_at
+    `,
+    args: [sensorId, normalizedExpression, Date.now()],
+  })
+
+  return {
+    sensorId,
+    expression: normalizedExpression,
   }
 }
 

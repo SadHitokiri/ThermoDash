@@ -4,14 +4,24 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useDevices } from "@/lib/hooks/useDevices";
 import { useSensorNames } from "@/lib/hooks/useSensorNames";
+import { applyTemperatureCalibration } from "@/lib/calibration";
 
 export default function Devices() {
   const devices = useDevices();
-  const { sensorNames, updateSensorName } = useSensorNames();
+  const {
+    sensorNames,
+    sensorCalibrations,
+    updateSensorName,
+    updateSensorCalibration,
+  } = useSensorNames();
   const [editingDeviceId, setEditingDeviceId] = useState("");
   const [draftName, setDraftName] = useState("");
   const [savingDeviceId, setSavingDeviceId] = useState("");
   const [errorDeviceId, setErrorDeviceId] = useState("");
+  const [editingCalibrationDeviceId, setEditingCalibrationDeviceId] = useState("");
+  const [draftCalibration, setDraftCalibration] = useState("");
+  const [savingCalibrationDeviceId, setSavingCalibrationDeviceId] = useState("");
+  const [errorCalibrationDeviceId, setErrorCalibrationDeviceId] = useState("");
 
   function startEditing(deviceId: string, displayName?: string) {
     setEditingDeviceId(deviceId);
@@ -45,6 +55,38 @@ export default function Devices() {
     }
   }
 
+  function startEditingCalibration(deviceId: string, expression?: string) {
+    setEditingCalibrationDeviceId(deviceId);
+    setDraftCalibration(expression || "");
+    setErrorCalibrationDeviceId("");
+  }
+
+  function cancelEditingCalibration() {
+    setEditingCalibrationDeviceId("");
+    setDraftCalibration("");
+    setSavingCalibrationDeviceId("");
+    setErrorCalibrationDeviceId("");
+  }
+
+  async function saveCalibration(deviceId: string, event?: FormEvent) {
+    event?.preventDefault();
+
+    if (savingCalibrationDeviceId) return;
+
+    setSavingCalibrationDeviceId(deviceId);
+    setErrorCalibrationDeviceId("");
+
+    try {
+      await updateSensorCalibration(deviceId, draftCalibration);
+      setEditingCalibrationDeviceId("");
+      setDraftCalibration("");
+    } catch {
+      setErrorCalibrationDeviceId(deviceId);
+    } finally {
+      setSavingCalibrationDeviceId("");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-xl">Devices</h1>
@@ -61,8 +103,15 @@ export default function Devices() {
           <tbody className="divide-y divide-[var(--color-border)]">
             {Array.from(devices.values()).map((device) => {
               const displayName = sensorNames.get(device.deviceId)?.trim();
+              const calibrationExpression = sensorCalibrations.get(device.deviceId);
+              const temperature =
+                device.temperature != null
+                  ? applyTemperatureCalibration(device.temperature, calibrationExpression)
+                  : null;
               const isEditing = editingDeviceId === device.deviceId;
               const isSaving = savingDeviceId === device.deviceId;
+              const isEditingCalibration = editingCalibrationDeviceId === device.deviceId;
+              const isSavingCalibration = savingCalibrationDeviceId === device.deviceId;
 
               return (
                 <tr
@@ -135,13 +184,74 @@ export default function Devices() {
                   </td>
 
                   <td className="px-6 py-4">
-                    {device.temperature != null ? (
-                      <span className="text-[var(--color-primary)] font-semibold">
-                        {device.temperature.toFixed(2)}
-                        {"\u00b0C"}
-                      </span>
+                    {isEditingCalibration ? (
+                      <form
+                        className="flex min-w-0 items-center gap-2"
+                        onSubmit={(event) => saveCalibration(device.deviceId, event)}
+                      >
+                        <input
+                          value={draftCalibration}
+                          onChange={(event) => setDraftCalibration(event.target.value)}
+                          autoFocus
+                          placeholder="+1"
+                          className="h-8 min-w-0 max-w-[120px] rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 text-sm font-semibold text-[var(--color-foreground)] outline-none transition focus:border-[var(--color-primary)]"
+                        />
+                        <button
+                          type="submit"
+                          title="Save"
+                          aria-label="Save"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-semibold text-white transition hover:opacity-85 disabled:opacity-50"
+                          disabled={isSavingCalibration}
+                        >
+                          {isSavingCalibration ? "..." : "\u2713"}
+                        </button>
+                        <button
+                          type="button"
+                          title="Cancel"
+                          aria-label="Cancel"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] text-sm font-semibold text-[var(--color-foreground)]/70 transition hover:bg-[var(--color-secondary)]/15"
+                          onClick={cancelEditingCalibration}
+                          disabled={isSavingCalibration}
+                        >
+                          x
+                        </button>
+                        {errorCalibrationDeviceId === device.deviceId && (
+                          <span className="text-xs font-medium text-red-500">
+                            Use +1, -0.5, *2, or /1.1
+                          </span>
+                        )}
+                      </form>
                     ) : (
-                      "Unknown"
+                      <div className="group flex min-w-0 items-center gap-2">
+                        <div className="flex min-w-0 flex-col">
+                          <span className={temperature != null ? "text-[var(--color-primary)] font-semibold" : ""}>
+                            {temperature != null ? (
+                              <>
+                                {temperature.toFixed(2)}
+                                {"\u00b0C"}
+                              </>
+                            ) : (
+                              "Unknown"
+                            )}
+                          </span>
+                          {calibrationExpression && (
+                            <span className="text-xs font-normal text-[var(--color-foreground)]/50">
+                              Calibration: {calibrationExpression}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          title="Edit"
+                          aria-label="Edit"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm text-[var(--color-foreground)]/45 opacity-0 transition hover:bg-[var(--color-secondary)]/15 hover:text-[var(--color-primary)] group-hover:opacity-100 focus:opacity-100"
+                          onClick={() =>
+                            startEditingCalibration(device.deviceId, calibrationExpression)
+                          }
+                        >
+                          {"\u270e"}
+                        </button>
+                      </div>
                     )}
                   </td>
 
