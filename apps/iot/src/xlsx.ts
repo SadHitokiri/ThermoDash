@@ -136,12 +136,17 @@ function createZip(files: Array<{ name: string; content: string | Buffer }>) {
 
 export function createReportWorkbook(rows: ReportRow[]) {
   const worksheetRows: CellValue[][] = [
-    ["Timestamp", "Sensor ID", "Temperature"],
-    ...rows.map((row) => [
-      new Date(Number(row.timestamp)).toISOString(),
-      String(row.sensor_id),
-      Number(row.temperature),
-    ]),
+    ["Timestamp", "Sensor", "Temperature"],
+    ...rows.map((row) => {
+      const sensorId = String(row.sensor_id)
+      const displayName = typeof row.display_name === "string" ? row.display_name.trim() : ""
+
+      return [
+        new Date(Number(row.timestamp)).toISOString(),
+        displayName ? `${displayName} (${sensorId})` : sensorId,
+        Number(row.temperature),
+      ]
+    }),
   ]
 
   return createZip([

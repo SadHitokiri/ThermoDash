@@ -2,16 +2,38 @@ import express from 'express';
 import http from 'http';
 import { checkDevices } from './usb/usb.manager';
 import { initWsServer } from './ws/ws.server';
-import { initDB, getReportDays, getLastReadings, getReportForDay } from './report-process';
+import { initDB, getReportDays, getLastReadings, getReportForDay, getSensorNames, updateSensorName } from './report-process';
 import { createReportWorkbook } from './xlsx';
 
 let wsBus: any;
+const allowedOrigins = new Set(["http://127.0.0.1:3000", "http://localhost:3000"])
 
 async function bootstrap() {
     const port = Number(process.env.PORT ?? 4000)
     const app = express();
     const server = http.createServer(app);
     await initDB()
+
+    app.use((req, res, next) => {
+        const origin = req.headers.origin
+
+        if (typeof origin === "string" && allowedOrigins.has(origin)) {
+            res.setHeader("Access-Control-Allow-Origin", origin)
+            res.setHeader("Vary", "Origin")
+        }
+
+        res.setHeader("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+        if (req.method === "OPTIONS") {
+            res.sendStatus(204)
+            return
+        }
+
+        next()
+    })
+
+    app.use(express.json())
 
     app.get('/health-status', (_, res) => res.json({ ok: true, status: 'Thermocouple Spectator IoT Backend is running', timestamp: new Date().toUTCString() }));
 
@@ -39,6 +61,24 @@ async function bootstrap() {
         )
 
         res.send(workbook)
+    })
+
+    app.get("/api/sensor-names", async (_, res) => {
+        const data = await getSensorNames()
+        res.json(data)
+    })
+
+    app.put("/api/sensor-names/:sensorId", async (req, res) => {
+        const sensorId = req.params.sensorId
+        const displayName = typeof req.body?.displayName === "string" ? req.body.displayName : ""
+
+        if (!sensorId) {
+            res.status(400).json({ error: "Sensor ID is required" })
+            return
+        }
+
+        const result = await updateSensorName(sensorId, displayName)
+        res.json(result ?? { sensorId, displayName: "" })
     })
 
     app.get('/api/sensor-data/:deviceId', (req, res) => {

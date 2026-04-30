@@ -2,10 +2,12 @@
 
 import Tile from "./components/Tile";
 import { useDevices } from "../lib/hooks/useDevices";
+import { useSensorNames } from "../lib/hooks/useSensorNames";
 import LineChart from "./components/LineChart";
 
 export default function Page() {
   const devices = useDevices();
+  const { sensorNames, updateSensorName } = useSensorNames();
 
   return (
     <div>
@@ -18,9 +20,11 @@ export default function Page() {
               key={device.deviceId}
               title={device.lastSeen}
               device={device.deviceId}
+              displayName={sensorNames.get(device.deviceId)}
+              onRename={updateSensorName}
               status={
-                device.temperature
-                  ? `${device.temperature.toFixed(2)}°C`
+                device.temperature != null
+                  ? `${device.temperature.toFixed(2)}\u00b0C`
                   : "Unknown"
               }
             >
