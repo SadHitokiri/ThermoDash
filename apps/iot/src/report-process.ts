@@ -27,6 +27,26 @@ export async function initDB() {
     )
   `)
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS sensor_calibration_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sensor_id TEXT NOT NULL,
+      expression TEXT NOT NULL,
+      effective_from INTEGER NOT NULL
+    )
+  `)
+
+  await db.execute(`
+    INSERT INTO sensor_calibration_history (sensor_id, expression, effective_from)
+    SELECT sensor_id, expression, updated_at
+    FROM sensor_calibrations
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM sensor_calibration_history
+      WHERE sensor_calibration_history.sensor_id = sensor_calibrations.sensor_id
+    )
+  `)
+
   console.log("DB ready")
 }
 
@@ -62,12 +82,26 @@ export async function getReportForDay(start: Date, end: Date) {
       SELECT
         sensor_data.sensor_id,
         sensor_names.display_name,
-        sensor_calibrations.expression as calibration_expression,
+        (
+          SELECT expression
+          FROM sensor_calibration_history
+          WHERE sensor_calibration_history.sensor_id = sensor_data.sensor_id
+            AND sensor_calibration_history.effective_from <= sensor_data.timestamp
+          ORDER BY effective_from DESC, id DESC
+          LIMIT 1
+        ) as calibration_expression,
+        (
+          SELECT effective_from
+          FROM sensor_calibration_history
+          WHERE sensor_calibration_history.sensor_id = sensor_data.sensor_id
+            AND sensor_calibration_history.effective_from <= sensor_data.timestamp
+          ORDER BY effective_from DESC, id DESC
+          LIMIT 1
+        ) as calibration_effective_from,
         sensor_data.temperature,
         sensor_data.timestamp
       FROM sensor_data
       LEFT JOIN sensor_names ON sensor_names.sensor_id = sensor_data.sensor_id
-      LEFT JOIN sensor_calibrations ON sensor_calibrations.sensor_id = sensor_data.sensor_id
       WHERE sensor_data.timestamp BETWEEN ? AND ?
       ORDER BY sensor_data.timestamp
     `,
@@ -142,6 +176,8 @@ export async function updateSensorCalibration(sensorId: string, expression: stri
     throw new Error("Invalid calibration expression")
   }
 
+  const effectiveFrom = Date.now()
+
   if (normalizedExpression.length === 0) {
     await db.execute({
       sql: `
@@ -149,6 +185,14 @@ export async function updateSensorCalibration(sensorId: string, expression: stri
         WHERE sensor_id = ?
       `,
       args: [sensorId],
+    })
+
+    await db.execute({
+      sql: `
+        INSERT INTO sensor_calibration_history (sensor_id, expression, effective_from)
+        VALUES (?, ?, ?)
+      `,
+      args: [sensorId, "", effectiveFrom],
     })
 
     return null
@@ -162,7 +206,15 @@ export async function updateSensorCalibration(sensorId: string, expression: stri
         expression = excluded.expression,
         updated_at = excluded.updated_at
     `,
-    args: [sensorId, normalizedExpression, Date.now()],
+    args: [sensorId, normalizedExpression, effectiveFrom],
+  })
+
+  await db.execute({
+    sql: `
+      INSERT INTO sensor_calibration_history (sensor_id, expression, effective_from)
+      VALUES (?, ?, ?)
+    `,
+    args: [sensorId, normalizedExpression, effectiveFrom],
   })
 
   return {

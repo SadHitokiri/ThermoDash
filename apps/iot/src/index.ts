@@ -52,24 +52,31 @@ async function bootstrap() {
     })
 
     app.get("/api/report-xlsx", async (req, res) => {
-        const day = req.query.day as string
+        try {
+            const day = req.query.day as string
 
-        const start = new Date(day)
-        start.setHours(0, 0, 0, 0)
+            const start = new Date(day)
+            start.setHours(0, 0, 0, 0)
 
-        const end = new Date(day)
-        end.setHours(23, 59, 59, 999)
+            const end = new Date(day)
+            end.setHours(23, 59, 59, 999)
 
-        const result = await getReportForDay(start, end)
-        const workbook = createReportWorkbook(result.rows)
+            const result = await getReportForDay(start, end)
+            const workbook = createReportWorkbook(result.rows)
 
-        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        res.setHeader(
-            "Content-Disposition",
-            `attachment; filename="report-${day}.xlsx"`
-        )
+            res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+            res.setHeader("Pragma", "no-cache")
+            res.setHeader("Expires", "0")
+            res.setHeader(
+                "Content-Disposition",
+                `attachment; filename="report-${day}.xlsx"`
+            )
 
-        res.send(workbook)
+            res.send(workbook)
+        } catch {
+            res.status(500).json({ error: "Failed to create Excel report" })
+        }
     })
 
     app.get("/api/sensor-names", async (_, res) => {

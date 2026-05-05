@@ -1,3 +1,5 @@
+import DownloadExcelButton from "./DownloadExcelButton";
+
 async function getReports() {
   try {
     const res = await fetch("http://127.0.0.1:4000/api/reports", {
@@ -48,12 +50,7 @@ export default async function ReportsPage() {
                 </td>
 
                 <td className="px-6 py-4">
-                  <a
-                    href={`http://127.0.0.1:4000/api/report-xlsx?day=${r.day}`}
-                    className="text-[var(--color-primary)] font-medium hover:opacity-80 transition"
-                  >
-                    Download Excel
-                  </a>
+                  <DownloadExcelButton day={r.day} />
                 </td>
               </tr>
             ))}

@@ -137,18 +137,23 @@ function createZip(files: Array<{ name: string; content: string | Buffer }>) {
 
 export function createReportWorkbook(rows: ReportRow[]) {
   const worksheetRows: CellValue[][] = [
-    ["Timestamp", "Sensor", "Temperature", "Calibration"],
+    ["Timestamp", "Sensor", "Raw Temperature", "Calibrated Temperature", "Calibration", "Calibration Since"],
     ...rows.map((row) => {
       const sensorId = String(row.sensor_id)
       const displayName = typeof row.display_name === "string" ? row.display_name.trim() : ""
       const calibrationExpression = typeof row.calibration_expression === "string" ? row.calibration_expression.trim() : ""
+      const calibrationEffectiveFrom = Number(row.calibration_effective_from)
       const rawTemperature = Number(row.temperature)
 
       return [
         new Date(Number(row.timestamp)).toISOString(),
         displayName ? `${displayName} (${sensorId})` : sensorId,
+        rawTemperature,
         applyTemperatureCalibration(rawTemperature, calibrationExpression),
-        calibrationExpression || "",
+        calibrationExpression || "None",
+        calibrationExpression && Number.isFinite(calibrationEffectiveFrom)
+          ? new Date(calibrationEffectiveFrom).toISOString()
+          : "",
       ]
     }),
   ]
