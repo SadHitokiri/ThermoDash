@@ -49,10 +49,12 @@ export default function Page() {
           .filter((device) => device != null);
   const gridClassName =
     chartCount === "1"
-      ? "grid grid-cols-1 gap-6 p-6"
+      ? "grid flex-1 min-h-0 grid-cols-1 grid-rows-1 gap-6 p-6"
       : chartCount === "2"
-        ? "grid grid-cols-1 xl:grid-cols-2 gap-6 p-6"
+        ? "grid flex-1 min-h-0 grid-cols-1 grid-rows-2 gap-6 p-6"
         : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 p-6";
+  const tileWrapperClassName =
+    chartCount === "all" ? "" : "min-h-0 h-full";
 
   useEffect(() => {
     setSelectedDeviceIds((current) =>
@@ -85,7 +87,7 @@ export default function Page() {
   }
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl">Dashboard</h1>
         <div className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-1">
@@ -199,22 +201,26 @@ export default function Page() {
           }));
 
           return (
-            <Tile
+            <div
               key={device.deviceId}
-              title={device.lastSeen}
-              device={device.deviceId}
-              displayName={sensorNames.get(device.deviceId)}
-              onRename={updateSensorName}
-              calibrationExpression={calibrationExpression}
-              onCalibrationUpdate={updateSensorCalibration}
-              status={
-                temperature != null
-                  ? `${temperature.toFixed(2)}\u00b0C`
-                  : "Unknown"
-              }
+              className={tileWrapperClassName || undefined}
             >
-              <LineChart points={chartPoints} />
-            </Tile>
+              <Tile
+                title={device.lastSeen}
+                device={device.deviceId}
+                displayName={sensorNames.get(device.deviceId)}
+                onRename={updateSensorName}
+                calibrationExpression={calibrationExpression}
+                onCalibrationUpdate={updateSensorCalibration}
+                status={
+                  temperature != null
+                    ? `${temperature.toFixed(2)}\u00b0C`
+                    : "Unknown"
+                }
+              >
+                <LineChart points={chartPoints} />
+              </Tile>
+            </div>
           );
         })}
       </div>

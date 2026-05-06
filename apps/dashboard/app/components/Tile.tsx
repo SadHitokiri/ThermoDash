@@ -201,7 +201,7 @@ export default function Tile({
               </form>
             ) : (
               <div className="group flex items-center gap-1">
-                <span className="text-xs px-2 py-1 rounded-full bg-[var(--color-secondary)]/20 text-[var(--color-primary)] font-medium">
+                <span className="text-md px-2 py-1 rounded-full bg-secondary/20 text-(--color-primary) font-medium">
                   {status}
                 </span>
                 {onCalibrationUpdate && (
@@ -218,7 +218,7 @@ export default function Tile({
               </div>
             )}
             {calibrationExpression && !isEditingCalibration && (
-              <span className="text-xs text-[var(--color-foreground)]/50">
+              <span className="text-xs text-foreground/50">
                 Calibration: {calibrationExpression}
               </span>
             )}
