@@ -10,7 +10,8 @@ export type TemperaturePoint = {
     temperature: number
 }
 
-const MAX_HISTORY_POINTS = 500
+const MAX_HISTORY_POINTS = 50000
+const MAX_HISTORY_AGE_MS = 24 * 60 * 60 * 1000
 const devices = new Map<string, DeviceState>()
 
 export function getDevicesSnapshot() {
@@ -53,6 +54,13 @@ export function applyData(message: any) {
         device.temperature = temperature
         device.lastSeen = new Date(timestamp).toLocaleTimeString()
         device.history.push({ timestamp, temperature })
+
+        while (
+            device.history.length > 0 &&
+            timestamp - device.history[0].timestamp > MAX_HISTORY_AGE_MS
+        ) {
+            device.history.shift()
+        }
 
         if (device.history.length > MAX_HISTORY_POINTS) {
             device.history.shift()
