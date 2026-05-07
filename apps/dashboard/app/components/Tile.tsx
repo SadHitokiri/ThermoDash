@@ -231,7 +231,7 @@ export default function Tile({
         )}
       </div>
 
-      <div className="flex-1 min-h-[180px]">{children}</div>
+      <div className="flex-1 min-h-[180px] overflow-hidden">{children}</div>
     </div>
   );
 }

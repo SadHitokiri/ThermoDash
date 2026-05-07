@@ -76,7 +76,7 @@ function getTickStepMs(visibleWindowMs: number) {
   if (visibleWindowMs <= 90 * MINUTE_MS) return 10 * MINUTE_MS;
   if (visibleWindowMs <= 3 * HOUR_MS) return 15 * MINUTE_MS;
   if (visibleWindowMs <= 4 * HOUR_MS) return 20 * MINUTE_MS;
-  if (visibleWindowMs <= 6 * HOUR_MS) return 30 * MINUTE_MS;
+  if (visibleWindowMs <= 5 * HOUR_MS) return 30 * MINUTE_MS;
   return HOUR_MS;
 }
 
@@ -176,6 +176,13 @@ export default function LineChart({ points }: Props) {
         responsive: true,
         maintainAspectRatio: false,
         parsing: false,
+        layout: {
+          padding: {
+            left: 10,
+            right: 12,
+            bottom: 10,
+          },
+        },
         interaction: {
           mode: "nearest",
           intersect: false,
@@ -203,16 +210,26 @@ export default function LineChart({ points }: Props) {
         scales: {
           x: {
             type: "linear",
+            border: {
+              display: true,
+              color: gridColor,
+            },
             grid: {
               color: gridColor,
             },
             ticks: {
               color: tickColor,
               maxTicksLimit: 7,
+              minRotation: 0,
+              maxRotation: 0,
               callback: (value) => getTimeLabel(Number(value), tickStepMs),
             },
           },
           y: {
+            border: {
+              display: true,
+              color: gridColor,
+            },
             grid: {
               color: gridColor,
             },
@@ -323,7 +340,8 @@ export default function LineChart({ points }: Props) {
   return (
     <div
       ref={containerRef}
-      className="h-full min-h-[180px] cursor-grab overflow-hidden active:cursor-grabbing"
+      className="h-full min-h-[180px] cursor-grab overflow-hidden select-none active:cursor-grabbing"
+      style={{ touchAction: "none" }}
       onPointerDown={startDrag}
       onPointerMove={drag}
       onPointerUp={stopDrag}
