@@ -28,11 +28,25 @@ type Props = {
   }>;
 };
 
-const getTimeLabel = (input: number) => {
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+const MIN_VISIBLE_WINDOW_MS = 5 * MINUTE_MS;
+const ZOOM_STEP = 1.25;
+
+const getTimeLabel = (input: number, stepMs = HOUR_MS) => {
   const date = new Date(input);
 
   if (isNaN(date.getTime())) {
     return "";
+  }
+
+  if (stepMs <= MINUTE_MS) {
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
   }
 
   return date.toLocaleTimeString([], {
@@ -40,12 +54,6 @@ const getTimeLabel = (input: number) => {
     minute: "2-digit",
   });
 };
-
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
-const HOUR_MS = 60 * 60 * 1000;
-const MINUTE_MS = 60 * 1000;
-const MIN_VISIBLE_WINDOW_MS = 5 * MINUTE_MS;
-const ZOOM_STEP = 1.25;
 
 const hexToRgba = (hex: string, alpha: number) => {
   const h = hex.replace("#", "");
@@ -57,56 +65,72 @@ const hexToRgba = (hex: string, alpha: number) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getTickStepMs(visibleWindowMs: number) {
+  if (visibleWindowMs <= 10 * MINUTE_MS) return MINUTE_MS;
+  if (visibleWindowMs <= 20 * MINUTE_MS) return 2 * MINUTE_MS;
+  if (visibleWindowMs <= 45 * MINUTE_MS) return 5 * MINUTE_MS;
+  if (visibleWindowMs <= 90 * MINUTE_MS) return 10 * MINUTE_MS;
+  if (visibleWindowMs <= 3 * HOUR_MS) return 15 * MINUTE_MS;
+  if (visibleWindowMs <= 4 * HOUR_MS) return 20 * MINUTE_MS;
+  if (visibleWindowMs <= 6 * HOUR_MS) return 30 * MINUTE_MS;
+  return HOUR_MS;
+}
+
 export default function LineChart({ points }: Props) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart<"line"> | null>(null);
-  const isAtEndRef = useRef(true);
-  const dragStateRef = useRef<{ pointerId: number; startX: number; scrollLeft: number } | null>(null);
-  const zoomAnchorRef = useRef<{ timestamp: number; offsetX: number } | null>(null);
-  const [viewportWidth, setViewportWidth] = useState(0);
+  const dragStateRef = useRef<{ pointerId: number; startX: number; startWindow: number } | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
   const [visibleWindowMs, setVisibleWindowMs] = useState(SIX_HOURS_MS);
+  const [windowStartMs, setWindowStartMs] = useState<number | null>(null);
+  const [isFollowingLatest, setIsFollowingLatest] = useState(true);
 
-  const tickStepMs =
-    visibleWindowMs <= 15 * MINUTE_MS
-      ? MINUTE_MS
-      : visibleWindowMs <= 60 * MINUTE_MS
-        ? 5 * MINUTE_MS
-        : visibleWindowMs <= 3 * HOUR_MS
-          ? 30 * MINUTE_MS
-          : HOUR_MS;
+  const tickStepMs = getTickStepMs(visibleWindowMs);
 
-  const { contentWidth, xMin, xMax } = useMemo(() => {
+  const { xMin, xMax } = useMemo(() => {
     if (points.length === 0) {
       return {
-        contentWidth: viewportWidth,
         xMin: 0,
         xMax: SIX_HOURS_MS,
       };
     }
 
-    const firstTimestamp = points[0].timestamp;
-    const lastTimestamp = points[points.length - 1].timestamp;
-    const visibleDuration = Math.max(lastTimestamp - firstTimestamp, visibleWindowMs);
+    const dataStart = points[0].timestamp;
+    const dataEnd = points[points.length - 1].timestamp;
+    const totalDuration = Math.max(dataEnd - dataStart, 0);
+
+    if (totalDuration <= visibleWindowMs) {
+      return {
+        xMin: dataStart,
+        xMax: dataStart + visibleWindowMs,
+      };
+    }
+
+    const latestWindowStart = dataEnd - visibleWindowMs;
+    const nextWindowStart =
+      isFollowingLatest || windowStartMs == null
+        ? latestWindowStart
+        : clamp(windowStartMs, dataStart, latestWindowStart);
 
     return {
-      contentWidth: Math.max(
-        viewportWidth,
-        Math.ceil((visibleDuration / visibleWindowMs) * viewportWidth)
-      ),
-      xMin: firstTimestamp,
-      xMax: firstTimestamp + visibleDuration,
+      xMin: nextWindowStart,
+      xMax: nextWindowStart + visibleWindowMs,
     };
-  }, [points, viewportWidth, visibleWindowMs]);
+  }, [isFollowingLatest, points, visibleWindowMs, windowStartMs]);
 
   useEffect(() => {
-    if (!scrollRef.current) return;
+    if (!containerRef.current) return;
 
     const resizeObserver = new ResizeObserver(([entry]) => {
-      setViewportWidth(entry.contentRect.width);
+      setContainerWidth(entry.contentRect.width);
     });
 
-    resizeObserver.observe(scrollRef.current);
+    resizeObserver.observe(containerRef.current);
 
     return () => {
       resizeObserver.disconnect();
@@ -124,8 +148,8 @@ export default function LineChart({ points }: Props) {
     const border = styles.getPropertyValue("--color-border").trim();
     const foreground = styles.getPropertyValue("--color-foreground").trim();
 
-    const tickColor = hexToRgba(foreground, 0.7);
-    const gridColor = hexToRgba(border, 0.6);
+    const tickColor = hexToRgba(foreground, 0.78);
+    const gridColor = hexToRgba(border, 0.8);
 
     const gradient = ctx.createLinearGradient(0, 0, 0, 200);
     gradient.addColorStop(0, primary);
@@ -134,10 +158,9 @@ export default function LineChart({ points }: Props) {
     chartRef.current = new Chart(ctx, {
       type: "line",
       data: {
-        labels: [],
         datasets: [
           {
-            label: "Temperature \u00b0C",
+            label: "Temperature °C",
             data: [],
             borderColor: primary,
             backgroundColor: gradient,
@@ -168,11 +191,11 @@ export default function LineChart({ points }: Props) {
             callbacks: {
               title: (items) => {
                 const x = items[0]?.parsed?.x;
-                return typeof x === "number" ? getTimeLabel(x) : "";
+                return typeof x === "number" ? getTimeLabel(x, MINUTE_MS) : "";
               },
               label: (ctx) => {
                 const y = ctx.parsed?.y;
-                return y != null ? `Temperature: ${y.toFixed(2)}\u00b0C` : "";
+                return y != null ? `Temperature: ${y.toFixed(2)} °C` : "";
               },
             },
           },
@@ -181,13 +204,12 @@ export default function LineChart({ points }: Props) {
           x: {
             type: "linear",
             grid: {
-              display: false,
+              color: gridColor,
             },
             ticks: {
               color: tickColor,
-              stepSize: HOUR_MS,
               maxTicksLimit: 7,
-              callback: (value) => getTimeLabel(Number(value)),
+              callback: (value) => getTimeLabel(Number(value), tickStepMs),
             },
           },
           y: {
@@ -219,109 +241,96 @@ export default function LineChart({ points }: Props) {
     chart.options.scales!.x!.min = xMin;
     chart.options.scales!.x!.max = xMax;
     (chart.options.scales!.x!.ticks as { stepSize?: number }).stepSize = tickStepMs;
-
     chart.update("none");
-  }, [points, xMin, xMax, tickStepMs]);
-
-  useEffect(() => {
-    const scrollElement = scrollRef.current;
-    const zoomAnchor = zoomAnchorRef.current;
-
-    if (scrollElement && zoomAnchor) {
-      const totalDuration = xMax - xMin || visibleWindowMs;
-      const anchorRatio = (zoomAnchor.timestamp - xMin) / totalDuration;
-      scrollElement.scrollLeft = anchorRatio * scrollElement.scrollWidth - zoomAnchor.offsetX;
-      zoomAnchorRef.current = null;
-      updateIsAtEnd();
-      return;
-    }
-
-    if (!scrollElement || !isAtEndRef.current) return;
-
-    scrollElement.scrollLeft = scrollElement.scrollWidth;
-  }, [contentWidth, points.length, visibleWindowMs, xMin, xMax]);
-
-  function updateIsAtEnd() {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement) return;
-
-    isAtEndRef.current =
-      scrollElement.scrollLeft + scrollElement.clientWidth >= scrollElement.scrollWidth - 8;
-  }
+  }, [points, tickStepMs, xMax, xMin]);
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement) return;
+    if (points.length < 2) return;
 
     dragStateRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
-      scrollLeft: scrollElement.scrollLeft,
+      startWindow: xMin,
     };
-    scrollElement.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function drag(event: PointerEvent<HTMLDivElement>) {
-    const scrollElement = scrollRef.current;
     const dragState = dragStateRef.current;
-    if (!scrollElement || !dragState) return;
+    if (!dragState || containerWidth <= 0 || points.length < 2) return;
 
-    scrollElement.scrollLeft = dragState.scrollLeft - (event.clientX - dragState.startX);
-    updateIsAtEnd();
+    const dataStart = points[0].timestamp;
+    const dataEnd = points[points.length - 1].timestamp;
+    const latestWindowStart = Math.max(dataStart, dataEnd - visibleWindowMs);
+    const deltaRatio = (event.clientX - dragState.startX) / containerWidth;
+    const nextWindowStart = clamp(
+      dragState.startWindow - deltaRatio * visibleWindowMs,
+      dataStart,
+      latestWindowStart
+    );
+
+    setWindowStartMs(nextWindowStart);
+    setIsFollowingLatest(nextWindowStart >= latestWindowStart - 1);
   }
 
   function stopDrag(event: PointerEvent<HTMLDivElement>) {
-    const scrollElement = scrollRef.current;
     const dragState = dragStateRef.current;
-    if (!scrollElement || !dragState) return;
+    if (!dragState) return;
 
     if (dragState.pointerId === event.pointerId) {
       dragStateRef.current = null;
-      scrollElement.releasePointerCapture(event.pointerId);
+      event.currentTarget.releasePointerCapture(event.pointerId);
     }
   }
 
   function zoom(event: WheelEvent<HTMLDivElement>) {
-    const scrollElement = scrollRef.current;
-    if (!scrollElement || viewportWidth === 0) return;
+    if (points.length === 0 || containerWidth <= 0) return;
 
     event.preventDefault();
 
-    const bounds = scrollElement.getBoundingClientRect();
+    const bounds = event.currentTarget.getBoundingClientRect();
     const offsetX = event.clientX - bounds.left;
-    const totalDuration = xMax - xMin || visibleWindowMs;
-    const anchorTimestamp =
-      xMin + ((scrollElement.scrollLeft + offsetX) / scrollElement.scrollWidth) * totalDuration;
+    const anchorRatio = clamp(offsetX / containerWidth, 0, 1);
+    const anchorTimestamp = xMin + anchorRatio * visibleWindowMs;
+    const dataStart = points[0].timestamp;
+    const dataEnd = points[points.length - 1].timestamp;
 
-    zoomAnchorRef.current = {
-      timestamp: anchorTimestamp,
-      offsetX,
-    };
+    const nextWindow = Math.round(
+      event.deltaY > 0
+        ? Math.min(SIX_HOURS_MS, visibleWindowMs * ZOOM_STEP)
+        : Math.max(MIN_VISIBLE_WINDOW_MS, visibleWindowMs / ZOOM_STEP)
+    );
 
-    setVisibleWindowMs((current) => {
-      const next =
-        event.deltaY > 0
-          ? Math.min(SIX_HOURS_MS, current * ZOOM_STEP)
-          : Math.max(MIN_VISIBLE_WINDOW_MS, current / ZOOM_STEP);
+    if (dataEnd - dataStart <= nextWindow) {
+      setVisibleWindowMs(nextWindow);
+      setWindowStartMs(dataStart);
+      setIsFollowingLatest(true);
+      return;
+    }
 
-      return Math.round(next);
-    });
+    const latestWindowStart = dataEnd - nextWindow;
+    const nextWindowStart = clamp(
+      anchorTimestamp - anchorRatio * nextWindow,
+      dataStart,
+      latestWindowStart
+    );
+
+    setVisibleWindowMs(nextWindow);
+    setWindowStartMs(nextWindowStart);
+    setIsFollowingLatest(nextWindowStart >= latestWindowStart - 1);
   }
 
   return (
     <div
-      ref={scrollRef}
-      className="h-full min-h-[180px] cursor-grab overflow-x-auto overflow-y-hidden active:cursor-grabbing"
-      onScroll={updateIsAtEnd}
+      ref={containerRef}
+      className="h-full min-h-[180px] cursor-grab overflow-hidden active:cursor-grabbing"
       onPointerDown={startDrag}
       onPointerMove={drag}
       onPointerUp={stopDrag}
       onPointerCancel={stopDrag}
       onWheel={zoom}
     >
-      <div className="h-full min-h-[180px]" style={{ width: contentWidth || "100%" }}>
-        <canvas className="h-full w-full" ref={canvasRef} />
-      </div>
+      <canvas className="h-full w-full" ref={canvasRef} />
     </div>
   );
 }
