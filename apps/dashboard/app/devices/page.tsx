@@ -1,10 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useDevices } from "@/lib/hooks/useDevices";
 import { useSensorNames } from "@/lib/hooks/useSensorNames";
 import { applyTemperatureCalibration } from "@/lib/calibration";
+
+const deviceSearchTimeoutMs = 60 * 1000;
+
+function DevicesTableSkeleton() {
+  return (
+    <tr>
+      <td colSpan={3} className="px-6 py-10">
+        <div className="relative overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-background)]/35 p-5">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <div className="h-3 w-20 animate-pulse rounded bg-[var(--color-border)]/70" />
+              <div className="h-5 w-44 animate-pulse rounded bg-[var(--color-border)]/80" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-24 animate-pulse rounded bg-[var(--color-border)]/70" />
+              <div className="h-6 w-28 animate-pulse rounded bg-[var(--color-secondary)]/20" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-20 animate-pulse rounded bg-[var(--color-border)]/70" />
+              <div className="h-5 w-32 animate-pulse rounded bg-[var(--color-border)]/80" />
+            </div>
+          </div>
+          <div className="mt-5 text-center text-sm font-medium text-[var(--color-foreground)]/60">
+            Searching for Arduino devices...
+          </div>
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-white/10" />
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function EmptyDevicesState() {
+  return (
+    <tr>
+      <td colSpan={3} className="px-6 py-12 text-center">
+        <div className="text-base font-semibold text-[var(--color-foreground)]">
+          No Arduino devices detected
+        </div>
+        <p className="mt-2 text-sm text-[var(--color-foreground)]/60">
+          Nothing appears to be connected. Plug in an Arduino or check the USB cable and port permissions.
+        </p>
+      </td>
+    </tr>
+  );
+}
 
 export default function Devices() {
   const devices = useDevices();
@@ -22,6 +68,21 @@ export default function Devices() {
   const [draftCalibration, setDraftCalibration] = useState("");
   const [savingCalibrationDeviceId, setSavingCalibrationDeviceId] = useState("");
   const [errorCalibrationDeviceId, setErrorCalibrationDeviceId] = useState("");
+  const [hasDeviceSearchTimedOut, setHasDeviceSearchTimedOut] = useState(false);
+  const deviceList = Array.from(devices.values());
+
+  useEffect(() => {
+    if (deviceList.length > 0) {
+      setHasDeviceSearchTimedOut(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setHasDeviceSearchTimedOut(true);
+    }, deviceSearchTimeoutMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [deviceList.length]);
 
   function startEditing(deviceId: string, displayName?: string) {
     setEditingDeviceId(deviceId);
@@ -101,7 +162,11 @@ export default function Devices() {
           </thead>
 
           <tbody className="divide-y divide-[var(--color-border)]">
-            {Array.from(devices.values()).map((device) => {
+            {deviceList.length === 0 && hasDeviceSearchTimedOut ? (
+              <EmptyDevicesState />
+            ) : deviceList.length === 0 ? (
+              <DevicesTableSkeleton />
+            ) : deviceList.map((device) => {
               const displayName = sensorNames.get(device.deviceId)?.trim();
               const calibrationExpression = sensorCalibrations.get(device.deviceId);
               const temperature =
@@ -193,8 +258,8 @@ export default function Devices() {
                           value={draftCalibration}
                           onChange={(event) => setDraftCalibration(event.target.value)}
                           autoFocus
-                          placeholder="+1"
-                          className="h-8 min-w-0 max-w-[120px] rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 text-sm font-semibold text-[var(--color-foreground)] outline-none transition focus:border-[var(--color-primary)]"
+                          placeholder="*1.05 +0.4"
+                          className="h-8 min-w-0 max-w-[160px] rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 text-sm font-semibold text-[var(--color-foreground)] outline-none transition focus:border-[var(--color-primary)]"
                         />
                         <button
                           type="submit"
@@ -217,14 +282,20 @@ export default function Devices() {
                         </button>
                         {errorCalibrationDeviceId === device.deviceId && (
                           <span className="text-xs font-medium text-red-500">
-                            Use +1, -0.5, *2, or /1.1
+                            Use +1, *2, or *1.05 +0.4
                           </span>
                         )}
                       </form>
                     ) : (
                       <div className="group flex min-w-0 items-center gap-2">
                         <div className="flex min-w-0 flex-col">
-                          <span className={temperature != null ? "text-[var(--color-primary)] font-semibold" : ""}>
+                          <span
+                            className={
+                              temperature != null
+                                ? "text-base font-bold tabular-nums text-[var(--color-primary)]"
+                                : "text-[var(--color-foreground)]/60"
+                            }
+                          >
                             {temperature != null ? (
                               <>
                                 {temperature.toFixed(2)}

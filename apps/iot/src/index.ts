@@ -127,12 +127,16 @@ async function bootstrap() {
 
     wsBus = initWsServer(server)
 
-    //Call the scan for devices each 5 seconds
-    setInterval(checkDevices, 5000)
-
     server.listen(port, "127.0.0.1", () => {
         console.log(`Backend running on :${port}`)
     })
+
+    checkDevices()
+    setTimeout(checkDevices, 1000)
+    setTimeout(checkDevices, 3000)
+
+    //Call the scan for devices each 5 seconds
+    setInterval(checkDevices, 5000)
 }
 
 bootstrap();

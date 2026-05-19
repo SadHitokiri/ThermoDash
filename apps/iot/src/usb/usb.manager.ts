@@ -7,8 +7,19 @@ type ConnectedDevice = {
     path: string
 }
 
-const supportedVendorIds = new Set(["0843", "1A86", "10C4"])
+const supportedVendorIds = new Set([
+    "0403", // FTDI USB serial adapters
+    "067B", // Prolific USB serial adapters
+    "0843",
+    "10C4", // Silicon Labs CP210x
+    "1A86", // WCH CH340/CH341
+    "2341", // Arduino
+    "239A", // Adafruit boards
+    "2A03", // Arduino.org
+])
+const supportedManufacturerPattern = /arduino|ch340|ch341|wch|silicon labs|cp210|ftdi|prolific/i
 const devices = new Map<string, ConnectedDevice>()
+const pendingDevices = new Set<string>()
 
 export function getConnectedDeviceIds() {
     return Array.from(devices.keys())
@@ -53,24 +64,37 @@ export async function checkDevices() {
         console.log(`Connected devices: ${Array.from(devices.keys()).join(', ')}`)
     }
 
-    const ports = await SerialPort.list()
+    let ports
+
+    try {
+        ports = await SerialPort.list()
+    } catch (error) {
+        console.error(`Unable to list serial ports: ${error instanceof Error ? error.message : String(error)}`)
+        return
+    }
 
     for (const portInfo of ports) {
-        if (portInfo.vendorId && supportedVendorIds.has(portInfo.vendorId.toUpperCase())) {
-            if (!devices.has(portInfo.path)) {
-                connectDevice(portInfo.path)
-            }
+        const vendorId = portInfo.vendorId?.toUpperCase()
+        const manufacturer = portInfo.manufacturer ?? ""
+        const isSupported =
+            Boolean(vendorId && supportedVendorIds.has(vendorId)) ||
+            supportedManufacturerPattern.test(manufacturer)
+
+        if (isSupported && !devices.has(portInfo.path) && !pendingDevices.has(portInfo.path)) {
+            connectDevice(portInfo.path)
         }
     }
 }
 
 // Connect device and set up data listener.
 function connectDevice(path: string) {
-    if (devices.has(path)) return
+    if (devices.has(path) || pendingDevices.has(path)) return
 
+    pendingDevices.add(path)
     const port = new SerialPort({
         path,
         baudRate: 9600,
+        autoOpen: false,
     })
 
     const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }))
@@ -93,15 +117,31 @@ function connectDevice(path: string) {
 
     port.on('close', () => {
         console.log(`Disconnected ${path}`)
+        pendingDevices.delete(path)
         devices.delete(path)
         publishDeviceList()
     })
 
     port.on('error', (error) => {
         console.error(`Serial error on ${path}: ${error.message}`)
+        pendingDevices.delete(path)
+
+        if (!port.isOpen) {
+            devices.delete(path)
+        }
     })
 
-    devices.set(path, { port, path })
-    console.log(`Connected ${path}`)
-    publishDeviceList()
+    port.open((error) => {
+        pendingDevices.delete(path)
+
+        if (error) {
+            console.error(`Unable to open ${path}: ${error.message}`)
+            devices.delete(path)
+            return
+        }
+
+        devices.set(path, { port, path })
+        console.log(`Connected ${path}`)
+        publishDeviceList()
+    })
 }

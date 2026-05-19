@@ -101,7 +101,7 @@ export function useSensorNames() {
     const normalizedExpression = normalizeCalibrationExpression(expression)
 
     if (normalizedExpression == null) {
-      throw new Error("Use a simple expression like +1, -0.5, *2, or /1.1")
+      throw new Error("Use +1, *2, or *1.05 +0.4")
     }
 
     const response = await fetch(`${apiBaseUrl}/api/sensor-calibrations/${encodeURIComponent(sensorId)}`, {

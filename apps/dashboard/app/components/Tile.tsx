@@ -33,6 +33,7 @@ export default function Tile({
 
   const shownName = displayName?.trim() || device;
   const hasCustomName = Boolean(displayName?.trim());
+  const hasTemperatureStatus = status?.endsWith("\u00b0C");
 
   function startEditing() {
     setDraftName(displayName?.trim() || "");
@@ -90,7 +91,7 @@ export default function Tile({
       setIsEditingCalibration(false);
       setDraftCalibration("");
     } catch {
-      setCalibrationError("Use +1, -0.5, *2, or /1.1");
+      setCalibrationError("Use +1, *2, or *1.05 +0.4");
     } finally {
       setIsSavingCalibration(false);
     }
@@ -176,8 +177,8 @@ export default function Tile({
                   value={draftCalibration}
                   onChange={(event) => setDraftCalibration(event.target.value)}
                   autoFocus
-                  placeholder="+1"
-                  className="h-8 w-20 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 text-xs font-semibold text-[var(--color-foreground)] outline-none transition focus:border-[var(--color-primary)]"
+                  placeholder="*1.05 +0.4"
+                  className="h-8 w-32 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 text-xs font-semibold text-[var(--color-foreground)] outline-none transition focus:border-[var(--color-primary)]"
                 />
                 <button
                   type="submit"
@@ -200,8 +201,14 @@ export default function Tile({
                 </button>
               </form>
             ) : (
-              <div className="group flex items-center gap-1">
-                <span className="text-md px-2 py-1 rounded-full bg-secondary/20 text-(--color-primary) font-medium">
+              <div className="group flex items-center gap-2">
+                <span
+                  className={
+                    hasTemperatureStatus
+                      ? "rounded-lg border border-[var(--color-primary)]/20 bg-[var(--color-secondary)]/15 px-3 py-1 text-2xl font-bold leading-none tabular-nums text-[var(--color-primary)]"
+                      : "rounded-lg bg-[var(--color-secondary)]/15 px-3 py-1 text-sm font-semibold text-[var(--color-foreground)]/60"
+                  }
+                >
                   {status}
                 </span>
                 {onCalibrationUpdate && (

@@ -9,17 +9,108 @@ import LineChart from "./components/LineChart";
 
 type ChartCount = "all" | "2" | "1";
 
+const dashboardPreferencesStorageKey = "thermodash.dashboard.preferences";
+const deviceSearchTimeoutMs = 60 * 1000;
+
 const chartCountOptions: Array<{ label: string; value: ChartCount }> = [
   { label: "All", value: "all" },
   { label: "2", value: "2" },
   { label: "1", value: "1" },
 ];
 
+function DashboardTileSkeleton({ message }: { message: string }) {
+  return (
+    <div className="col-span-full flex min-h-[320px] flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="h-3 w-28 animate-pulse rounded bg-[var(--color-border)]/70" />
+          <div className="h-5 w-40 animate-pulse rounded bg-[var(--color-border)]/80" />
+        </div>
+        <div className="h-9 w-28 animate-pulse rounded-lg bg-[var(--color-secondary)]/20" />
+      </div>
+      <div className="relative min-h-[180px] flex-1 overflow-hidden rounded-lg border border-[var(--color-border)]/50 bg-[var(--color-background)]/35">
+        <div className="absolute inset-x-4 top-5 bottom-8 border-l border-b border-[var(--color-border)]/80">
+          <div className="absolute inset-0 grid grid-rows-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span
+                key={index}
+                className="border-t border-[var(--color-border)]/60"
+              />
+            ))}
+          </div>
+          <svg
+            className="absolute inset-0 h-full w-full animate-pulse"
+            preserveAspectRatio="none"
+            viewBox="0 0 100 100"
+            aria-hidden="true"
+          >
+            <polyline
+              points="0,76 15,67 30,70 45,51 60,56 76,34 100,28"
+              fill="none"
+              stroke="var(--color-primary)"
+              strokeOpacity="0.24"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-white/10" />
+      </div>
+      <div className="mt-3 text-center text-sm font-medium text-[var(--color-foreground)]/60">
+        {message}
+      </div>
+    </div>
+  );
+}
+
+function EmptyDashboardState() {
+  return (
+    <div className="col-span-full flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center">
+      <div className="text-base font-semibold text-[var(--color-foreground)]">
+        No Arduino devices detected
+      </div>
+      <p className="mt-2 max-w-md text-sm text-[var(--color-foreground)]/60">
+        Nothing appears to be connected. Plug in an Arduino or check the USB cable and port permissions.
+      </p>
+    </div>
+  );
+}
+
+function isChartCount(value: unknown): value is ChartCount {
+  return value === "all" || value === "2" || value === "1";
+}
+
+function readDashboardPreferences() {
+  try {
+    const savedPreferences = window.localStorage.getItem(dashboardPreferencesStorageKey);
+    if (!savedPreferences) return null;
+
+    const parsedPreferences = JSON.parse(savedPreferences) as {
+      chartCount?: unknown;
+      selectedDeviceIds?: unknown;
+    };
+
+    return {
+      chartCount: isChartCount(parsedPreferences.chartCount)
+        ? parsedPreferences.chartCount
+        : "all",
+      selectedDeviceIds: Array.isArray(parsedPreferences.selectedDeviceIds)
+        ? parsedPreferences.selectedDeviceIds.filter((deviceId): deviceId is string => typeof deviceId === "string")
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function Page() {
   const [chartCount, setChartCount] = useState<ChartCount>("all");
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
   const [draftSelectedDeviceIds, setDraftSelectedDeviceIds] = useState<string[]>([]);
   const [isChangingDevices, setIsChangingDevices] = useState(false);
+  const [areDashboardPreferencesLoaded, setAreDashboardPreferencesLoaded] = useState(false);
+  const [hasDeviceSearchTimedOut, setHasDeviceSearchTimedOut] = useState(false);
   const devices = useDevices();
   const {
     sensorNames,
@@ -57,10 +148,45 @@ export default function Page() {
     chartCount === "all" ? "" : "min-h-0 h-full";
 
   useEffect(() => {
+    const savedPreferences = readDashboardPreferences();
+
+    if (savedPreferences) {
+      setChartCount(savedPreferences.chartCount);
+      setSelectedDeviceIds(savedPreferences.selectedDeviceIds);
+    }
+
+    setAreDashboardPreferencesLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!areDashboardPreferencesLoaded) return;
+
+    window.localStorage.setItem(
+      dashboardPreferencesStorageKey,
+      JSON.stringify({ chartCount, selectedDeviceIds })
+    );
+  }, [areDashboardPreferencesLoaded, chartCount, selectedDeviceIds]);
+
+  useEffect(() => {
+    if (availableDeviceIds.length === 0) return;
+
     setSelectedDeviceIds((current) =>
       current.filter((deviceId) => availableDeviceIds.includes(deviceId))
     );
   }, [availableDeviceIds.join("|")]);
+
+  useEffect(() => {
+    if (allDevices.length > 0) {
+      setHasDeviceSearchTimedOut(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setHasDeviceSearchTimedOut(true);
+    }, deviceSearchTimeoutMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [allDevices.length]);
 
   function openDeviceSelector() {
     setDraftSelectedDeviceIds(filledSelectedDeviceIds);
@@ -189,7 +315,11 @@ export default function Page() {
       )}
 
       <div className={gridClassName}>
-        {visibleDevices.map((device) => {
+        {visibleDevices.length === 0 && hasDeviceSearchTimedOut ? (
+          <EmptyDashboardState />
+        ) : visibleDevices.length === 0 ? (
+          <DashboardTileSkeleton message="Searching for Arduino devices..." />
+        ) : visibleDevices.map((device) => {
           const calibrationExpression = sensorCalibrations.get(device.deviceId);
           const temperature =
             device.temperature != null

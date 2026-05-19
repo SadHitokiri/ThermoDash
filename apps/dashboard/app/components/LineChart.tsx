@@ -33,6 +33,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const MIN_VISIBLE_WINDOW_MS = 5 * MINUTE_MS;
 const ZOOM_STEP = 1.25;
+const DEFAULT_Y_AXIS_MAX = 300;
 
 const getTimeLabel = (input: number, stepMs = HOUR_MS) => {
   const date = new Date(input);
@@ -226,6 +227,7 @@ export default function LineChart({ points }: Props) {
             },
           },
           y: {
+            suggestedMax: DEFAULT_Y_AXIS_MAX,
             border: {
               display: true,
               color: gridColor,

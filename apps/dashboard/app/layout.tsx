@@ -113,7 +113,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <FaviconSwitcher />
         <div className="flex h-screen">
           <NavigationBar />
-          <main className="flex-1 p-6 overflow-auto">{children}</main>
+          <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-6">
+            {children}
+          </main>
         </div>
       </body>
     </html>
