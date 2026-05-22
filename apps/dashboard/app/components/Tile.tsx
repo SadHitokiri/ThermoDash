@@ -98,10 +98,10 @@ export default function Tile({
   }
 
   return (
-    <div className="bg-[var(--color-card)] rounded-2xl border border-[var(--color-border)] p-4 flex flex-col h-full transition-all duration-200 hover:shadow-lg">
+    <div className="bg-(--color-card) rounded-2xl border border-(--color-border) p-4 flex flex-col h-full transition-all duration-200 hover:shadow-lg">
       <div className="flex items-center justify-between mb-3">
         <div className="flex min-w-0 flex-col">
-          <h2 className="text-sm text-[var(--color-foreground)]/60">
+          <h2 className="text-sm text-foreground/60">
             {title instanceof Date ? title.toLocaleString() : title}
           </h2>
           {isEditing ? (
@@ -114,7 +114,7 @@ export default function Tile({
                 onChange={(event) => setDraftName(event.target.value)}
                 autoFocus
                 placeholder={device}
-                className="h-8 min-w-0 max-w-[180px] rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 text-sm font-semibold text-[var(--color-foreground)] outline-none transition focus:border-[var(--color-primary)]"
+                className="h-8 min-w-0 max-w-45 rounded-md border border-(--color-border) bg-(--color-background) px-2 text-sm font-semibold text-(--color-foreground) outline-none transition focus:border-(--color-primary)"
               />
               <button
                 type="submit"
