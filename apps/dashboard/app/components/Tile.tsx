@@ -178,64 +178,66 @@ export default function Tile({
           >
             {status}
           </span>
-        </div>
-      )}
-      {onCalibrationUpdate && (
-        <div className="flex shrink-0 flex-col gap-1">
-          {isEditingCalibration ? (
-            <form
-              className="flex items-center gap-2"
-              onSubmit={saveCalibration}
-            >
-              <input
-                value={draftCalibration}
-                onChange={(event) => setDraftCalibration(event.target.value)}
-                autoFocus
-                placeholder="*1.05 +0.4"
-                className="h-8 w-32 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 text-xs font-semibold text-[var(--color-foreground)] outline-none transition focus:border-[var(--color-primary)]"
-              />
-              <button
-                type="submit"
-                title="Save"
-                aria-label="Save"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-semibold text-white transition hover:opacity-85 disabled:opacity-50"
-                disabled={isSavingCalibration}
-              >
-                {isSavingCalibration ? "..." : "\u2713"}
-              </button>
-              <button
-                type="button"
-                title="Cancel"
-                aria-label="Cancel"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] text-sm font-semibold text-[var(--color-foreground)]/70 transition hover:bg-[var(--color-secondary)]/15"
-                onClick={cancelEditingCalibration}
-                disabled={isSavingCalibration}
-              >
-                x
-              </button>
-            </form>
-          ) : (
-            <div className="group flex items-center gap-2">
-              {calibrationExpression && (
-                <span className="text-xs text-foreground/50">
-                  Calibration: {calibrationExpression}
+          {onCalibrationUpdate && (
+            <div className="flex shrink-0 flex-col p-1 gap-1">
+              {isEditingCalibration ? (
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={saveCalibration}
+                >
+                  <input
+                    value={draftCalibration}
+                    onChange={(event) =>
+                      setDraftCalibration(event.target.value)
+                    }
+                    autoFocus
+                    placeholder="*1.05 +0.4"
+                    className="h-8 w-32 rounded-md border border-[var(--color-border)] bg-[var(--color-background)] px-2 text-xs font-semibold text-[var(--color-foreground)] outline-none transition focus:border-[var(--color-primary)]"
+                  />
+                  <button
+                    type="submit"
+                    title="Save"
+                    aria-label="Save"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-semibold text-white transition hover:opacity-85 disabled:opacity-50"
+                    disabled={isSavingCalibration}
+                  >
+                    {isSavingCalibration ? "..." : "\u2713"}
+                  </button>
+                  <button
+                    type="button"
+                    title="Cancel"
+                    aria-label="Cancel"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] text-sm font-semibold text-[var(--color-foreground)]/70 transition hover:bg-[var(--color-secondary)]/15"
+                    onClick={cancelEditingCalibration}
+                    disabled={isSavingCalibration}
+                  >
+                    x
+                  </button>
+                </form>
+              ) : (
+                <div className="group flex items-center gap-2">
+                  {calibrationExpression && (
+                    <span className="text-xs text-foreground/50">
+                      Calibration: {calibrationExpression}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    title="Edit calibration"
+                    aria-label="Edit calibration"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm text-[var(--color-foreground)]/45 opacity-0 transition hover:bg-[var(--color-secondary)]/15 hover:text-[var(--color-primary)] group-hover:opacity-100 focus:opacity-100"
+                    onClick={startEditingCalibration}
+                  >
+                    {"\u270e"}
+                  </button>
+                </div>
+              )}
+              {calibrationError && (
+                <span className="max-w-[150px] text-right text-xs font-medium text-red-500">
+                  {calibrationError}
                 </span>
               )}
-              <button
-                type="button"
-                title="Edit calibration"
-                aria-label="Edit calibration"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm text-[var(--color-foreground)]/45 opacity-0 transition hover:bg-[var(--color-secondary)]/15 hover:text-[var(--color-primary)] group-hover:opacity-100 focus:opacity-100"
-                onClick={startEditingCalibration}
-              >
-                {"\u270e"}
-              </button>
             </div>
-          )}
-          {calibrationError && (
-            <span className="max-w-[150px] text-right text-xs font-medium text-red-500">
-              {calibrationError}
-            </span>
           )}
         </div>
       )}
