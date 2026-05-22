@@ -92,6 +92,17 @@ export default function LineChart({ points }: Props) {
   const [isFollowingLatest, setIsFollowingLatest] = useState(true);
 
   const tickStepMs = getTickStepMs(visibleWindowMs);
+  const yMax = useMemo(() => {
+    const maxTemperature = points.reduce(
+      (currentMax, point) =>
+        Number.isFinite(point.temperature)
+          ? Math.max(currentMax, point.temperature)
+          : currentMax,
+      DEFAULT_Y_AXIS_MAX
+    );
+
+    return Math.max(DEFAULT_Y_AXIS_MAX, maxTemperature);
+  }, [points]);
 
   const { xMin, xMax } = useMemo(() => {
     if (points.length === 0) {
@@ -227,7 +238,8 @@ export default function LineChart({ points }: Props) {
             },
           },
           y: {
-            suggestedMax: DEFAULT_Y_AXIS_MAX,
+            min: 0,
+            max: DEFAULT_Y_AXIS_MAX,
             border: {
               display: true,
               color: gridColor,
@@ -259,9 +271,11 @@ export default function LineChart({ points }: Props) {
     }));
     chart.options.scales!.x!.min = xMin;
     chart.options.scales!.x!.max = xMax;
+    chart.options.scales!.y!.min = 0;
+    chart.options.scales!.y!.max = yMax;
     (chart.options.scales!.x!.ticks as { stepSize?: number }).stepSize = tickStepMs;
     chart.update("none");
-  }, [points, tickStepMs, xMax, xMin]);
+  }, [points, tickStepMs, xMax, xMin, yMax]);
 
   function startDrag(event: PointerEvent<HTMLDivElement>) {
     if (points.length < 2) return;
