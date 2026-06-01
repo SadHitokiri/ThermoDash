@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import UpdateButton from "./components/UpdateButton";
 import "./globals.css";
 
 function FaviconSwitcher() {
@@ -80,9 +81,17 @@ function NavigationBar() {
         >
           Statistic
         </Link>
+
+        <Link
+          href="/logs"
+          className="px-4 py-2 rounded-xl font-medium text-[var(--color-foreground)]/80 hover:text-[var(--color-foreground)] hover:bg-[var(--color-secondary)]/15 transition-all duration-200"
+        >
+          Logs
+        </Link>
       </nav>
 
       <div className="mt-auto pt-4 border-t border-[var(--color-border)] text-xs text-center space-y-1 text-[var(--color-foreground)]/50">
+        <UpdateButton />
         <p>
           Built by{" "}
           <span className="text-[var(--color-foreground)]/70">

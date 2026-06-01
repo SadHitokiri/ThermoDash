@@ -1,7 +1,8 @@
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const path = require("path");
 const { fork } = require("child_process");
 const http = require("http");
+const { autoUpdater } = require("electron-updater");
 
 const isDev = !app.isPackaged;
 const frontendPort = process.env.DASHBOARD_PORT || "3000";
@@ -12,6 +13,16 @@ const backendHealthUrl = `http://127.0.0.1:${backendPort}/health-status`;
 let mainWindow;
 let backendProcess;
 let nextProcess;
+let updateCheckInterval;
+let updateStatus = {
+  state: "idle",
+  updateAvailable: false,
+  version: null,
+  error: null,
+};
+let updatePromptShownForVersion = null;
+let isCheckingForUpdates = false;
+let isDownloadingUpdate = false;
 
 function getWindowIcon() {
   if (process.platform === "win32") {
@@ -68,6 +79,217 @@ function createWindow() {
   mainWindow.loadURL(frontendUrl);
 }
 
+function sendUpdateStatus(nextStatus = {}) {
+  updateStatus = {
+    ...updateStatus,
+    ...nextStatus,
+  };
+
+  mainWindow?.webContents.send("updates:status", updateStatus);
+}
+
+async function askToDownloadUpdate(version) {
+  if (!mainWindow || updatePromptShownForVersion === version) return;
+
+  updatePromptShownForVersion = version;
+  const versionLabel = version ? ` ${version}` : "";
+
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: "info",
+    buttons: ["Update now", "Later"],
+    defaultId: 0,
+    cancelId: 1,
+    title: "ThermoDash update available",
+    message: `ThermoDash${versionLabel} is available.`,
+    detail: "Install the update now or continue working and use the Update button later.",
+  });
+
+  if (result.response === 0) {
+    downloadUpdate();
+    return;
+  }
+
+  sendUpdateStatus({
+    state: "available",
+    updateAvailable: true,
+    version,
+    error: null,
+  });
+}
+
+async function askToInstallDownloadedUpdate(version) {
+  if (!mainWindow) return;
+
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: "info",
+    buttons: ["Restart and install", "Later"],
+    defaultId: 0,
+    cancelId: 1,
+    title: "ThermoDash update ready",
+    message: `ThermoDash ${version || ""} is ready to install.`.trim(),
+    detail: "Restart the app to finish installing the update.",
+  });
+
+  if (result.response === 0) {
+    autoUpdater.quitAndInstall(false, true);
+    return;
+  }
+
+  sendUpdateStatus({
+    state: "downloaded",
+    updateAvailable: true,
+    version,
+    error: null,
+  });
+}
+
+async function checkForUpdates({ userInitiated = false } = {}) {
+  if (isDev) {
+    sendUpdateStatus({
+      state: "unavailable",
+      updateAvailable: false,
+      error: null,
+    });
+    return updateStatus;
+  }
+
+  if (isCheckingForUpdates || isDownloadingUpdate) {
+    return updateStatus;
+  }
+
+  isCheckingForUpdates = true;
+
+  if (userInitiated) {
+    sendUpdateStatus({ state: "checking", error: null });
+  }
+
+  try {
+    const result = await autoUpdater.checkForUpdates();
+
+    if (!result?.updateInfo) {
+      sendUpdateStatus({
+        state: "unavailable",
+        updateAvailable: false,
+        error: null,
+      });
+    }
+  } catch (error) {
+    console.error("Update check failed", error);
+    sendUpdateStatus({
+      state: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    isCheckingForUpdates = false;
+  }
+
+  return updateStatus;
+}
+
+async function downloadUpdate() {
+  if (isDev || isDownloadingUpdate) {
+    return updateStatus;
+  }
+
+  isDownloadingUpdate = true;
+  sendUpdateStatus({ state: "downloading", updateAvailable: true, error: null });
+
+  try {
+    await autoUpdater.downloadUpdate();
+  } catch (error) {
+    console.error("Update download failed", error);
+    sendUpdateStatus({
+      state: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    isDownloadingUpdate = false;
+  }
+
+  return updateStatus;
+}
+
+function configureAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on("checking-for-update", () => {
+    sendUpdateStatus({ state: "checking", error: null });
+  });
+
+  autoUpdater.on("update-available", (info) => {
+    const version = info.version || null;
+
+    sendUpdateStatus({
+      state: "available",
+      updateAvailable: true,
+      version,
+      error: null,
+    });
+
+    askToDownloadUpdate(version);
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    sendUpdateStatus({
+      state: "unavailable",
+      updateAvailable: false,
+      error: null,
+    });
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    sendUpdateStatus({
+      state: "downloading",
+      updateAvailable: true,
+      progress: Math.round(progress.percent || 0),
+      error: null,
+    });
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    const version = info.version || updateStatus.version;
+
+    sendUpdateStatus({
+      state: "downloaded",
+      updateAvailable: true,
+      version,
+      progress: 100,
+      error: null,
+    });
+
+    askToInstallDownloadedUpdate(version);
+  });
+
+  autoUpdater.on("error", (error) => {
+    console.error("Updater error", error);
+    sendUpdateStatus({
+      state: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+}
+
+function startUpdateChecks() {
+  if (isDev) return;
+
+  checkForUpdates();
+  updateCheckInterval = setInterval(() => checkForUpdates(), 60 * 60 * 1000);
+}
+
+function registerUpdateIpcHandlers() {
+  ipcMain.handle("updates:get-status", () => updateStatus);
+  ipcMain.handle("updates:check", () => checkForUpdates({ userInitiated: true }));
+  ipcMain.handle("updates:install", async () => {
+    if (updateStatus.state === "downloaded") {
+      autoUpdater.quitAndInstall(false, true);
+      return updateStatus;
+    }
+
+    return downloadUpdate();
+  });
+}
+
 function startServers() {
   if (isDev) return;
 
@@ -108,9 +330,12 @@ function startServers() {
 function stopServers() {
   if (backendProcess) backendProcess.kill();
   if (nextProcess) nextProcess.kill();
+  if (updateCheckInterval) clearInterval(updateCheckInterval);
 }
 
 app.whenReady().then(async () => {
+  configureAutoUpdater();
+  registerUpdateIpcHandlers();
   startServers();
 
   try {
@@ -119,6 +344,7 @@ app.whenReady().then(async () => {
       waitForUrl(backendHealthUrl),
     ]);
     createWindow();
+    startUpdateChecks();
   } catch (error) {
     dialog.showErrorBox("ThermoDash failed to start", error.message);
     stopServers();

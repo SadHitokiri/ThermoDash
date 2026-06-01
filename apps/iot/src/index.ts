@@ -13,9 +13,19 @@ import {
     updateSensorCalibration,
 } from './report-process';
 import { createReportWorkbook } from './xlsx';
+import {
+    getLogEntries,
+    getLogFilePath,
+    installConsoleLogger,
+    writeLog,
+    type LogLevel,
+} from './logger';
 
 let wsBus: any;
 const allowedOrigins = new Set(["http://127.0.0.1:3000", "http://localhost:3000"])
+const logLevels = new Set<LogLevel>(["info", "warn", "error"])
+
+installConsoleLogger()
 
 async function bootstrap() {
     const port = Number(process.env.PORT ?? 4000)
@@ -74,7 +84,8 @@ async function bootstrap() {
             )
 
             res.send(workbook)
-        } catch {
+        } catch (error) {
+            writeLog("error", "Failed to create Excel report", error)
             res.status(500).json({ error: "Failed to create Excel report" })
         }
     })
@@ -114,7 +125,8 @@ async function bootstrap() {
         try {
             const result = await updateSensorCalibration(sensorId, expression)
             res.json(result ?? { sensorId, expression: "" })
-        } catch {
+        } catch (error) {
+            writeLog("warn", `Rejected calibration expression for ${sensorId}`, error)
             res.status(400).json({ error: "Use a simple expression like +1, -0.5, *2, or /1.1" })
         }
     })
@@ -123,6 +135,25 @@ async function bootstrap() {
         const { deviceId } = req.params
         const data = getLastReadings(deviceId)
         res.json(data)
+    })
+
+    app.get("/api/logs", (req, res) => {
+        const limit = Math.min(Number(req.query.limit ?? 200) || 200, 1000)
+        const requestedLevel = req.query.level
+        const level =
+            typeof requestedLevel === "string" && logLevels.has(requestedLevel as LogLevel)
+                ? requestedLevel as LogLevel
+                : undefined
+
+        res.json({
+            file: getLogFilePath(),
+            entries: getLogEntries(limit, level),
+        })
+    })
+
+    app.use((error: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+        writeLog("error", `${req.method} ${req.originalUrl} failed`, error)
+        res.status(500).json({ error: "Internal server error" })
     })
 
     wsBus = initWsServer(server)
