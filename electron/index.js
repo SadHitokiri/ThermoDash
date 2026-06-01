@@ -9,6 +9,7 @@ const frontendPort = process.env.DASHBOARD_PORT || "3000";
 const backendPort = process.env.IOT_PORT || "4000";
 const frontendUrl = `http://127.0.0.1:${frontendPort}`;
 const backendHealthUrl = `http://127.0.0.1:${backendPort}/health-status`;
+const frontendOrigin = new URL(frontendUrl).origin;
 
 let mainWindow;
 let backendProcess;
@@ -69,12 +70,37 @@ function createWindow() {
     icon: getWindowIcon(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      devTools: isDev,
+      nodeIntegration: false,
+      sandbox: false,
     },
   });
 
   mainWindow.maximize();
 
   mainWindow.setMenu(null);
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (new URL(url).origin !== frontendOrigin) {
+      event.preventDefault();
+    }
+  });
+
+  if (!isDev) {
+    mainWindow.webContents.on("before-input-event", (event, input) => {
+      const key = input.key.toLowerCase();
+      const isDevToolsShortcut =
+        key === "f12" ||
+        (input.control && input.shift && key === "i") ||
+        (input.control && input.shift && key === "j");
+
+      if (isDevToolsShortcut) {
+        event.preventDefault();
+      }
+    });
+  }
 
   mainWindow.loadURL(frontendUrl);
 }

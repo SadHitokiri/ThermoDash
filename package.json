@@ -7,10 +7,12 @@
     "dev": "turbo dev",
     "build": "turbo run build",
     "build:web": "pnpm --filter dashboard build",
-    "dist": "pnpm build && electron-builder",
-    "dist:win": "pnpm build && electron-builder --win nsis",
-    "dist:linux": "pnpm build && electron-builder --linux deb",
-    "dist:linux:appimage": "pnpm build && electron-builder --linux AppImage",
+    "dist": "pnpm build && electron-builder --publish never",
+    "dist:win": "pnpm build && electron-builder --win nsis --publish never",
+    "dist:linux": "pnpm build && electron-builder --linux deb AppImage --publish never",
+    "dist:linux:appimage": "pnpm build && electron-builder --linux AppImage --publish never",
+    "publish:win": "pnpm build && electron-builder --win nsis --publish always",
+    "publish:linux": "pnpm build && electron-builder --linux deb AppImage --publish always",
     "start": "turbo run start",
     "electron": "wait-on http://localhost:3000 && electron .",
     "dev:full": "concurrently \"pnpm dev\" \"wait-on http://localhost:3000 && pnpm electron\""
@@ -57,11 +59,14 @@
   "build": {
     "appId": "com.thermodash.app",
     "productName": "ThermoDash",
+    "asar": true,
+    "compression": "maximum",
     "npmRebuild": false,
     "nodeGypRebuild": false,
     "directories": {
       "output": "dist"
     },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "publish": [
       {
         "provider": "github",
@@ -72,6 +77,12 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
     },
     "linux": {
       "target": [
@@ -86,6 +97,11 @@
       "electron/**/*",
       "assets/icon.ico",
       "apps/iot/dist/**/*",
+      "!**/*.map",
+      "!**/*.ts",
+      "!**/*.tsx",
+      "!**/tsconfig.json",
+      "!**/README.md",
       "package.json"
     ],
     "extraResources": [
@@ -93,12 +109,19 @@
         "from": "apps/dashboard/.next/standalone",
         "to": "dashboard",
         "filter": [
-          "**/*"
+          "**/*",
+          "!**/*.map",
+          "!**/*.ts",
+          "!**/*.tsx"
         ]
       },
       {
         "from": "apps/dashboard/.next/static",
-        "to": "dashboard/apps/dashboard/.next/static"
+        "to": "dashboard/apps/dashboard/.next/static",
+        "filter": [
+          "**/*",
+          "!**/*.map"
+        ]
       },
       {
         "from": "apps/dashboard/public",
