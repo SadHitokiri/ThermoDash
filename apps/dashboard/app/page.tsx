@@ -344,7 +344,7 @@ export default function Page() {
                 onCalibrationUpdate={updateSensorCalibration}
                 status={
                   temperature != null
-                    ? `${temperature.toFixed(2)}\u00b0C`
+                    ? `${Math.round(temperature)}\u00b0C`
                     : "Unknown"
                 }
               >

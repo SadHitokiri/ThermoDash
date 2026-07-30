@@ -28,7 +28,7 @@ type Props = {
   }>;
 };
 
-const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const MIN_VISIBLE_WINDOW_MS = 5 * MINUTE_MS;
@@ -87,7 +87,7 @@ export default function LineChart({ points }: Props) {
   const chartRef = useRef<Chart<"line"> | null>(null);
   const dragStateRef = useRef<{ pointerId: number; startX: number; startWindow: number } | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [visibleWindowMs, setVisibleWindowMs] = useState(SIX_HOURS_MS);
+  const [visibleWindowMs, setVisibleWindowMs] = useState(DAY_MS);
   const [windowStartMs, setWindowStartMs] = useState<number | null>(null);
   const [isFollowingLatest, setIsFollowingLatest] = useState(true);
 
@@ -108,7 +108,7 @@ export default function LineChart({ points }: Props) {
     if (points.length === 0) {
       return {
         xMin: 0,
-        xMax: SIX_HOURS_MS,
+        xMax: DAY_MS,
       };
     }
 
@@ -214,7 +214,7 @@ export default function LineChart({ points }: Props) {
               },
               label: (ctx) => {
                 const y = ctx.parsed?.y;
-                return y != null ? `Temperature: ${y.toFixed(2)} °C` : "";
+                return y != null ? `Temperature: ${Math.round(y)} °C` : "";
               },
             },
           },
@@ -330,7 +330,7 @@ export default function LineChart({ points }: Props) {
 
     const nextWindow = Math.round(
       event.deltaY > 0
-        ? Math.min(SIX_HOURS_MS, visibleWindowMs * ZOOM_STEP)
+        ? Math.min(DAY_MS, visibleWindowMs * ZOOM_STEP)
         : Math.max(MIN_VISIBLE_WINDOW_MS, visibleWindowMs / ZOOM_STEP)
     );
 
