@@ -1,0 +1,58 @@
+name: Linux DEB Release
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to upload the DEB asset to, for example v1.0.1
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    name: Build Debian Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.28.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Linux packaging tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Debian package
+        run: pnpm dist:linux
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: thermodash-deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+      - name: Upload package to GitHub Release
+        if: github.event_name == 'release' || inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: gh release upload "$RELEASE_TAG" dist/*.deb --clobber

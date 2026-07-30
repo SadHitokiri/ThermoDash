@@ -124,6 +124,13 @@ dist/ThermoDash Setup 1.0.0.exe
 
 Ubuntu build artifacts are generated in `dist` as `.AppImage` and `.deb` files.
 
+GitHub can build and attach installers automatically. Publish a GitHub Release
+in this repository and the release workflows will build on hosted runners, then
+upload the generated installers to the release assets for download:
+
+- `Linux DEB Release` builds `dist/*.deb` on Ubuntu.
+- `Windows Release` builds `dist/*.exe` on Windows.
+
 If the Ubuntu application menu keeps showing a generic gear icon after installing an updated package, log out and back in or refresh the icon cache:
 
 ```bash

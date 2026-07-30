@@ -298,7 +298,7 @@ export default function Devices() {
                           >
                             {temperature != null ? (
                               <>
-                                {temperature.toFixed(2)}
+                                {Math.round(temperature)}
                                 {"\u00b0C"}
                               </>
                             ) : (
