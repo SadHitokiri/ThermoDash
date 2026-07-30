@@ -5,6 +5,11 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to upload the EXE asset to, for example v1.0.1
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -16,17 +21,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.28.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install dependencies
@@ -36,18 +41,19 @@ jobs:
         run: pnpm dist:win
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: thermodash-windows-installer
           path: dist/*.exe
           if-no-files-found: error
 
       - name: Upload installer to GitHub Release
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
         run: |
           $installers = Get-ChildItem -Path dist -Filter *.exe
           foreach ($installer in $installers) {
-            gh release upload "${{ github.event.release.tag_name }}" $installer.FullName --clobber
+            gh release upload "$env:RELEASE_TAG" $installer.FullName --clobber
           }

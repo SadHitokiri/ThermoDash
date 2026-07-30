@@ -5,6 +5,11 @@ on:
     types:
       - published
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to upload the DEB asset to, for example v1.0.1
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -16,17 +21,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10.28.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install Linux packaging tools
@@ -39,14 +44,15 @@ jobs:
         run: pnpm dist:linux
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: thermodash-deb
           path: dist/*.deb
           if-no-files-found: error
 
       - name: Upload package to GitHub Release
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || inputs.release_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.deb --clobber
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: gh release upload "$RELEASE_TAG" dist/*.deb --clobber
