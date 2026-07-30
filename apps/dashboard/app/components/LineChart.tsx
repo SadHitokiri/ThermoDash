@@ -70,6 +70,12 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function getStartOfDayMs(input: number) {
+  const date = new Date(input);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
 function getTickStepMs(visibleWindowMs: number) {
   if (visibleWindowMs <= 10 * MINUTE_MS) return MINUTE_MS;
   if (visibleWindowMs <= 20 * MINUTE_MS) return 2 * MINUTE_MS;
@@ -106,14 +112,31 @@ export default function LineChart({ points }: Props) {
 
   const { xMin, xMax } = useMemo(() => {
     if (points.length === 0) {
+      const todayStart = getStartOfDayMs(Date.now());
+
       return {
-        xMin: 0,
-        xMax: DAY_MS,
+        xMin: todayStart,
+        xMax: todayStart + DAY_MS,
       };
     }
 
     const dataStart = points[0].timestamp;
     const dataEnd = points[points.length - 1].timestamp;
+    const dataStartDay = getStartOfDayMs(dataStart);
+    const latestDayStart = getStartOfDayMs(dataEnd);
+
+    if (visibleWindowMs >= DAY_MS) {
+      const nextWindowStart =
+        isFollowingLatest || windowStartMs == null
+          ? latestDayStart
+          : clamp(getStartOfDayMs(windowStartMs), dataStartDay, latestDayStart);
+
+      return {
+        xMin: nextWindowStart,
+        xMax: nextWindowStart + DAY_MS,
+      };
+    }
+
     const totalDuration = Math.max(dataEnd - dataStart, 0);
 
     if (totalDuration <= visibleWindowMs) {
@@ -294,13 +317,21 @@ export default function LineChart({ points }: Props) {
 
     const dataStart = points[0].timestamp;
     const dataEnd = points[points.length - 1].timestamp;
-    const latestWindowStart = Math.max(dataStart, dataEnd - visibleWindowMs);
+    const dataStartLimit = visibleWindowMs >= DAY_MS ? getStartOfDayMs(dataStart) : dataStart;
+    const latestWindowStart =
+      visibleWindowMs >= DAY_MS
+        ? getStartOfDayMs(dataEnd)
+        : Math.max(dataStartLimit, dataEnd - visibleWindowMs);
     const deltaRatio = (event.clientX - dragState.startX) / containerWidth;
-    const nextWindowStart = clamp(
+    const rawWindowStart = clamp(
       dragState.startWindow - deltaRatio * visibleWindowMs,
-      dataStart,
+      dataStartLimit,
       latestWindowStart
     );
+    const nextWindowStart =
+      visibleWindowMs >= DAY_MS
+        ? clamp(getStartOfDayMs(rawWindowStart + DAY_MS / 2), dataStartLimit, latestWindowStart)
+        : rawWindowStart;
 
     setWindowStartMs(nextWindowStart);
     setIsFollowingLatest(nextWindowStart >= latestWindowStart - 1);
