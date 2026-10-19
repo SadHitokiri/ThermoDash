@@ -1,6 +1,6 @@
 {
   "name": "thermodash",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Desktop application for thermocouple temperature monitoring and Excel reports.",
   "main": "electron/index.js",
   "scripts": {
