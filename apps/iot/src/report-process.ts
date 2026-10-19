@@ -1,6 +1,10 @@
 import { db } from "./db"
 import { normalizeCalibrationExpression } from "./calibration"
 
+export const DATA_RETENTION_DAYS = 30
+export const RETENTION_WARNING_DAYS = 7
+const DAY_MS = 24 * 60 * 60 * 1000
+
 export async function initDB() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS sensor_data (
@@ -37,6 +41,11 @@ export async function initDB() {
   `)
 
   await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp
+    ON sensor_data (timestamp)
+  `)
+
+  await db.execute(`
     INSERT INTO sensor_calibration_history (sensor_id, expression, effective_from)
     SELECT sensor_id, expression, updated_at
     FROM sensor_calibrations
@@ -50,17 +59,87 @@ export async function initDB() {
   console.log("DB ready")
 }
 
-export async function insertSensorData(sensorId: string, temp: number) {
+export async function removeExpiredSensorData(now = Date.now()) {
+  const expiresBefore = now - DATA_RETENTION_DAYS * DAY_MS
+  const result = await db.execute({
+    sql: `DELETE FROM sensor_data WHERE timestamp < ?`,
+    args: [expiresBefore],
+  })
+
+  return Number(result.rowsAffected ?? 0)
+}
+
+export async function insertSensorData(sensorId: string, temp: number, timestamp = Date.now()) {
   await db.execute({
     sql: `
       INSERT INTO sensor_data (sensor_id, temperature, timestamp)
       VALUES (?, ?, ?)
     `,
-    args: [sensorId, temp, Date.now()]
+    args: [sensorId, temp, timestamp]
   })
 }
 
-export async function getReportDays() {
+export async function getReportDays(page = 1, pageSize = 14, now = Date.now()) {
+  const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1
+  const safePageSize = Number.isFinite(pageSize)
+    ? Math.min(100, Math.max(1, Math.floor(pageSize)))
+    : 14
+  const offset = (safePage - 1) * safePageSize
+  const [reportsResult, countResult, retentionResult] = await Promise.all([
+    db.execute({
+      sql: `
+        SELECT
+          DATE(timestamp / 1000, 'unixepoch') as day,
+          COUNT(*) as rows
+        FROM sensor_data
+        GROUP BY day
+        ORDER BY day DESC
+        LIMIT ? OFFSET ?
+      `,
+      args: [safePageSize, offset],
+    }),
+    db.execute(`
+      SELECT COUNT(DISTINCT DATE(timestamp / 1000, 'unixepoch')) as total_days
+      FROM sensor_data
+    `),
+    db.execute({
+      sql: `
+        SELECT MIN(timestamp) as next_deletion_source, COUNT(*) as rows
+        FROM sensor_data
+        WHERE timestamp >= ? AND timestamp < ?
+      `,
+      args: [
+        now - DATA_RETENTION_DAYS * DAY_MS,
+        now - (DATA_RETENTION_DAYS - RETENTION_WARNING_DAYS) * DAY_MS,
+      ],
+    }),
+  ])
+
+  const reports = reportsResult.rows.map((row) => ({
+    day: String(row.day),
+    rows: Number(row.rows),
+  }))
+  const totalDays = Number(countResult.rows[0]?.total_days ?? 0)
+  const nextDeletionSource = retentionResult.rows[0]?.next_deletion_source
+
+  return {
+    reports,
+    pagination: {
+      page: safePage,
+      pageSize: safePageSize,
+      totalDays,
+      totalPages: Math.ceil(totalDays / safePageSize),
+    },
+    retention: nextDeletionSource == null
+      ? null
+      : {
+          deletesAt: new Date(Number(nextDeletionSource) + DATA_RETENTION_DAYS * DAY_MS).toISOString(),
+          rows: Number(retentionResult.rows[0]?.rows ?? 0),
+        },
+  }
+}
+
+export async function getAllReportDays() {
   const res = await db.execute(`
     SELECT
       DATE(timestamp / 1000, 'unixepoch') as day,

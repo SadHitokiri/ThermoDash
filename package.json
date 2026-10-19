@@ -5,6 +5,7 @@
   "main": "electron/index.js",
   "scripts": {
     "dev": "turbo dev",
+    "dev:mock": "concurrently \"pnpm --filter thermocouple-spectator-iot run mock\" \"pnpm --filter thermocouple-spectator run dev\"",
     "build": "turbo run build",
     "build:web": "pnpm --filter dashboard build",
     "dist": "pnpm build && electron-builder",

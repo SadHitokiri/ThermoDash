@@ -5,6 +5,7 @@ import { initWsServer } from './ws/ws.server';
 import {
     initDB,
     getReportDays,
+    removeExpiredSensorData,
     getLastReadings,
     getReportForDay,
     getSensorNames,
@@ -13,6 +14,7 @@ import {
     updateSensorCalibration,
 } from './report-process';
 import { createReportWorkbook } from './xlsx';
+import { seedMockSensorData, startMockDevices } from './mock';
 import {
     getLogEntries,
     getLogFilePath,
@@ -22,6 +24,7 @@ import {
 } from './logger';
 
 let wsBus: any;
+const isMockMode = process.env.THERMODASH_MOCK_MODE === "1"
 const allowedOrigins = new Set(["http://127.0.0.1:3000", "http://localhost:3000"])
 const logLevels = new Set<LogLevel>(["info", "warn", "error"])
 
@@ -32,6 +35,14 @@ async function bootstrap() {
     const app = express();
     const server = http.createServer(app);
     await initDB()
+    if (isMockMode) {
+        await seedMockSensorData()
+        console.log("Mock mode enabled: virtual devices and sample history are active")
+    }
+    const removedRows = await removeExpiredSensorData()
+    if (removedRows > 0) {
+        console.log(`Removed ${removedRows} sensor readings older than 30 days`)
+    }
 
     app.use((req, res, next) => {
         const origin = req.headers.origin
@@ -57,7 +68,9 @@ async function bootstrap() {
     app.get('/health-status', (_, res) => res.json({ ok: true, status: 'Thermocouple Spectator IoT Backend is running', timestamp: new Date().toUTCString() }));
 
     app.get("/api/reports", async (req, res) => {
-        const data = await getReportDays()
+        const requestedPage = Number(req.query.page ?? 1)
+        const requestedPageSize = Number(req.query.pageSize ?? 14)
+        const data = await getReportDays(requestedPage, requestedPageSize)
         res.json(data)
     })
 
@@ -162,12 +175,24 @@ async function bootstrap() {
         console.log(`Backend running on :${port}`)
     })
 
-    checkDevices()
-    setTimeout(checkDevices, 1000)
-    setTimeout(checkDevices, 3000)
-
-    //Call the scan for devices each 5 seconds
-    setInterval(checkDevices, 5000)
+    if (isMockMode) {
+        startMockDevices()
+    } else {
+        checkDevices()
+        setTimeout(checkDevices, 1000)
+        setTimeout(checkDevices, 3000)
+        setInterval(checkDevices, 5000)
+    }
+    setInterval(async () => {
+        try {
+            const removed = await removeExpiredSensorData()
+            if (removed > 0) {
+                console.log(`Removed ${removed} sensor readings older than 30 days`)
+            }
+        } catch (error) {
+            writeLog("error", "Failed to remove expired sensor readings", error)
+        }
+    }, 24 * 60 * 60 * 1000)
 }
 
 bootstrap();
